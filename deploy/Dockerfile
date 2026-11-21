@@ -34,5 +34,6 @@ ENTRYPOINT ["node"]
 CMD ["scripts/database.mjs", "verify"]
 
 FROM caddy:2-alpine AS web
-COPY deploy/Caddyfile /etc/caddy/Caddyfile
+ARG CADDYFILE=deploy/Caddyfile
+COPY ${CADDYFILE} /etc/caddy/Caddyfile
 COPY --from=frontend-build /app/dist /srv/nexatech
