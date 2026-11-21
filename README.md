@@ -1,4 +1,10 @@
-# React + Vite
+# NexaTech
+
+La [implementación local de NexaTech](docs/implementacion-local.md) documenta el esquema, los conectores y las pruebas con el emulador de Firebase SQL Connect.
+
+El [estado actual de NexaTech](docs/ESTADO_ACTUAL_NEXATECH.md) reúne los resultados hasta G1. Con PostgreSQL 18 y Firebase CLI configurados, `npm.cmd run dev:local` inicia la tienda, la autenticación y el catálogo de demostración en `127.0.0.1`. [Preparación y pruebas](docs/implementacion-local.md#tienda-integrada-de-la-fase-e1)
+
+El build para Hosting toma los identificadores públicos de la aplicación web de `nexatech-58ce3` desde `.env.production.local`. La [guía de publicación](docs/preparacion-publicacion-g1.md) documenta la configuración, las pruebas y las autorizaciones pendientes.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

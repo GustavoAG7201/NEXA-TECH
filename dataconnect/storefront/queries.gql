@@ -1,0 +1,60 @@
+query ListCategories @auth(level: PUBLIC, insecureReason: "Public storefront categories") {
+  categories(where: {archivedAt: {isNull: true}}, orderBy: {name: ASC}, limit: 100) {
+    id slug name description
+  }
+}
+
+query ListCatalog(
+  $search: String, $categoryId: UUID, $minimum: Int64, $maximum: Int64,
+  $available: Int, $offset: Int!
+) @auth(level: PUBLIC, insecureReason: "Public sellable catalog projection") {
+  productVariants(
+    where: {
+      archivedAt: {isNull: true},
+      product: {
+        status: {eq: "ACTIVE"}, archivedAt: {isNull: true}, name: {contains: $search},
+        categoryId: {eq: $categoryId}, category: {archivedAt: {isNull: true}}
+      },
+      unitPriceCents: {ge: $minimum, le: $maximum}, stockOnHand: {ge: $available}
+    },
+    orderBy: [{unitPriceCents: ASC}, {id: ASC}], limit: 30, offset: $offset
+  ) {
+    id sku optionLabel color unitPriceCents compareAtCents stockOnHand
+    product {
+      id slug legacyId name description specs status featured
+      category { id slug name }
+      productImages_on_product(orderBy: {position: ASC}, limit: 1) { src alt }
+    }
+  }
+}
+
+query GetProduct($slug: String!) @auth(level: PUBLIC, insecureReason: "Public sellable product details") {
+  products(where: {
+    slug: {eq: $slug}, status: {eq: "ACTIVE"}, archivedAt: {isNull: true},
+    category: {archivedAt: {isNull: true}},
+    productVariants_on_product: {exist: {archivedAt: {isNull: true}}}
+  }, limit: 1) {
+    id slug legacyId name description specs status
+    category { id slug name }
+    productImages_on_product(orderBy: {position: ASC}, limit: 20) { src alt position credit }
+    productVariants_on_product(where: {archivedAt: {isNull: true}}, limit: 50) {
+      id sku optionLabel color unitPriceCents compareAtCents stockOnHand weightG lengthMm widthMm heightMm
+    }
+  }
+}
+
+query ListProductReviews($productId: UUID!, $offset: Int!) @auth(level: PUBLIC, insecureReason: "Public approved reviews without author identity") {
+  reviews(where: {
+    productId: {eq: $productId}, moderationStatus: {eq: "APPROVED"},
+    product: {status: {eq: "ACTIVE"}, archivedAt: {isNull: true}, category: {archivedAt: {isNull: true}}}
+  }, orderBy: [{createdAt: DESC}, {id: ASC}], limit: 30, offset: $offset) {
+    id rating body createdAt
+  }
+}
+
+query GetPublishedPolicies @auth(level: PUBLIC, insecureReason: "Public current policy texts") {
+  legalDocuments(
+    where: {publishedAt: {le_expr: "request.time"}, withdrawnAt: {isNull: true}},
+    orderBy: {kind: ASC}, limit: 20
+  ) { id kind version title body sha256 publishedAt }
+}

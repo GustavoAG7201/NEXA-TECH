@@ -1,0 +1,6 @@
+connectorId: storefront
+generate:
+  javascriptSdk:
+    - outputDir: ../../src/dataconnect-generated/storefront
+      package: "@nexatech/storefront"
+      react: false

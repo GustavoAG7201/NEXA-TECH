@@ -1,0 +1,6 @@
+connectorId: account
+generate:
+  javascriptSdk:
+    - outputDir: ../../src/dataconnect-generated/account
+      package: "@nexatech/account"
+      react: false

@@ -1,0 +1,204 @@
+query ListStaffOrders($offset: Int!, $status: String) @auth(level: USER_EMAIL_VERIFIED) {
+  staffOrders(where: {readerUid: {eq_expr: "auth.uid"}, order: {status: {eq: $status}}},
+    orderBy: [{order: {createdAt: DESC}}, {orderId: ASC}], limit: 30, offset: $offset) {
+    order { id folio status userUid currency totalCents confirmedAt }
+  }
+}
+
+query GetStaffOrder($id: UUID!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffOrders(where: {readerUid: {eq_expr: "auth.uid"}, orderId: {eq: $id}}, limit: 1) {
+    order {
+      id folio userUid status subtotalCents discountCents totalCents confirmedAt
+      orderItems_on_order { id nameSnapshot skuSnapshot quantity unitPriceCents }
+      orderAddress_on_order { recipient phone line1 line2 district city stateCode postalCode }
+      shipment_on_order {
+        id status carrier trackingCode estimatedFrom estimatedTo shippedAt deliveredAt
+        shipmentEvents_on_shipment(orderBy: [{occurredAt: DESC}, {id: ASC}], limit: 50) { eventType publicDetail occurredAt }
+      }
+      orderStatusEvents_on_order(orderBy: [{createdAt: ASC}, {id: ASC}]) { newStatus reason createdAt }
+      payment_on_order { status amountCents }
+    }
+  }
+}
+
+query ListCustomers($offset: Int!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffCustomers(where: {readerUid: {eq_expr: "auth.uid"}}, orderBy: {customerUid: ASC}, limit: 30, offset: $offset) {
+    customer { uid displayName status createdAt userRoles_on_user { roleCode } }
+  }
+}
+
+query ListStaffCategories($offset: Int!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffCategories(where: {readerUid: {eq_expr: "auth.uid"}},
+    orderBy: [{category: {name: ASC}}, {categoryId: ASC}], limit: 30, offset: $offset) {
+    category { id slug name description archivedAt }
+  }
+}
+
+query ListInventoryMovements($variantId: UUID, $offset: Int!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffInventories(where: {readerUid: {eq_expr: "auth.uid"}, movement: {variantId: {eq: $variantId}}},
+    orderBy: [{movement: {createdAt: DESC}}, {movementId: ASC}], limit: 30, offset: $offset) {
+    movement { id variantId kind delta reason createdAt command { actorUid } variant { sku stockOnHand lowStockThreshold } }
+  }
+}
+
+query ListAuditEvents($offset: Int!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffAuditEvents(where: {readerUid: {eq_expr: "auth.uid"}}, orderBy: [{event: {createdAt: DESC}}, {eventId: ASC}],
+    limit: 30, offset: $offset) {
+    event { id actorUid action entityType entityKey metadata createdAt }
+  }
+}
+
+query ListSupportQueue($offset: Int!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffQueueEntries(where: {readerUid: {eq_expr: "auth.uid"}}, orderBy: [{createdAt: ASC}, {id: ASC}], limit: 30, offset: $offset) {
+    id kind status createdAt assigned
+  }
+}
+
+query GetStaffReturnRequest($id: UUID!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffReturnCases(where: {readerUid: {eq_expr: "auth.uid"}, requestId: {eq: $id}}, limit: 1) {
+    request {
+      id orderId folio kind status reasonCode description assignedToUid resolutionCode resolutionNote createdAt closedAt
+      order { folio status }
+      returnItems_on_request {
+        id orderItemId requestedQty approvedQty receivedQty restockedQty conditionCode inspectionNote
+        orderItem { skuSnapshot nameSnapshot }
+      }
+      returnEvidences_on_request(where: {deletedAt: {isNull: true}}, limit: 5) { id mediaType sizeBytes sha256 }
+      returnEvents_on_request(orderBy: {createdAt: ASC}, limit: 100) { newStatus publicDetail createdAt }
+    }
+  }
+}
+
+query GetStaffReturnEvidence($requestId: UUID!, $id: UUID!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffReturnCases(where: {readerUid: {eq_expr: "auth.uid"}, requestId: {eq: $requestId}}, limit: 1) {
+    request {
+      returnEvidences_on_request(where: {id: {eq: $id}, deletedAt: {isNull: true}}, limit: 1) {
+        id mediaType sizeBytes contentB64 sha256
+      }
+    }
+  }
+}
+
+query GetStaffCaseRefunds($orderId: UUID!, $id: UUID!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffOrders(where: {readerUid: {eq_expr: "auth.uid"}, orderId: {eq: $orderId}}, limit: 1) {
+    order {
+      returnRequests_on_order(where: {id: {eq: $id}}, limit: 1) {
+        refunds_on_request(where: {status: {eq: "APPROVED"}}) { id amountCents shippingRefundCents decidedAt }
+      }
+    }
+  }
+}
+
+query GetStaffTicket($id: UUID!, $messageOffset: Int) @auth(level: USER_EMAIL_VERIFIED) {
+  staffTickets(where: {readerUid: {eq_expr: "auth.uid"}, ticketId: {eq: $id}}, limit: 1) {
+    ticket {
+      id folio status subject orderId assignedToUid createdAt closedAt
+      supportMessages_on_ticket(orderBy: [{createdAt: DESC}, {id: ASC}], limit: 100, offset: $messageOffset) {
+        id body visibility createdAt authorUid
+      }
+    }
+  }
+}
+
+query GetAdminReports($start: Date!, $end: Date!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffDailySales(where: {readerUid: {eq_expr: "auth.uid"}, day: {ge: $start, lt: $end}},
+    orderBy: {day: ASC}, limit: 366) { day orderCount netCents }
+}
+
+query ListLowStock($offset: Int!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffStockAlerts(where: {readerUid: {eq_expr: "auth.uid"}},
+    orderBy: [{stockOnHand: ASC}, {sku: ASC}], limit: 30, offset: $offset) {
+    variantId sku stockOnHand lowStockThreshold
+  }
+}
+
+query ListSkuSales($start: Date!, $end: Date!, $offset: Int!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffSkuSales(where: {readerUid: {eq_expr: "auth.uid"}, day: {ge: $start, lt: $end}},
+    orderBy: [{day: DESC}, {grossUnits: DESC}, {sku: ASC}], limit: 100, offset: $offset) { day sku grossUnits }
+}
+
+query ListReturnSummary($start: Date!, $end: Date!, $offset: Int!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffReturnSummaries(where: {readerUid: {eq_expr: "auth.uid"}, day: {ge: $start, lt: $end}},
+    orderBy: [{day: DESC}, {kind: ASC}, {status: ASC}, {reasonCode: ASC}], limit: 100, offset: $offset) {
+    day kind status reasonCode requestCount
+  }
+}
+
+query ListStaffProducts($offset: Int!, $search: String, $status: String) @auth(level: USER_EMAIL_VERIFIED) {
+  staffCatalogProducts(where: {readerUid: {eq_expr: "auth.uid"}, product: {name: {contains: $search}, status: {eq: $status}}},
+    orderBy: [{product: {name: ASC}}, {productId: ASC}], limit: 30, offset: $offset) {
+    product { id name slug status category { name } }
+  }
+}
+
+query GetStaffProduct($id: UUID!, $variantOffset: Int!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffCatalogProducts(where: {readerUid: {eq_expr: "auth.uid"}, productId: {eq: $id}}, limit: 1) {
+    product {
+      id name slug status categoryId description specs featured
+      productVariants_on_product(orderBy: [{sku: ASC}, {id: ASC}], limit: 30, offset: $variantOffset) {
+        id sku optionLabel unitPriceCents stockOnHand archivedAt
+      }
+    }
+  }
+}
+
+query ListStaffVariants($offset: Int!, $id: UUID, $productId: UUID, $sku: String) @auth(level: USER_EMAIL_VERIFIED) {
+  staffCatalogVariants(where: {readerUid: {eq_expr: "auth.uid"}, variantId: {eq: $id},
+    variant: {productId: {eq: $productId}, sku: {contains: $sku}}},
+    orderBy: [{variant: {sku: ASC}}, {variantId: ASC}], limit: 30, offset: $offset) {
+    variant {
+      id productId sku optionLabel color taxClassCode unitPriceCents compareAtCents unitCostCents
+      stockOnHand lowStockThreshold weightG lengthMm widthMm heightMm archivedAt
+      product { name status }
+    }
+  }
+}
+
+query ListStaffTaxClasses @auth(level: USER_EMAIL_VERIFIED) {
+  staffCatalogTaxes(where: {readerUid: {eq_expr: "auth.uid"}}, orderBy: {code: ASC}) { code label rateBps }
+}
+
+query ListStaffCoupons($offset: Int!, $id: UUID) @auth(level: USER_EMAIL_VERIFIED) {
+  staffCoupons(where: {readerUid: {eq_expr: "auth.uid"}, couponId: {eq: $id}},
+    orderBy: [{coupon: {code: ASC}}, {couponId: ASC}], limit: 30, offset: $offset) {
+    redemptionCount
+    coupon { id code kind fixedAmountCents percentageBps minSubtotalCents startsAt endsAt totalLimit perUserLimit archivedAt }
+  }
+}
+
+query ListCouponRedemptions($id: UUID!, $offset: Int!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffCoupons(where: {readerUid: {eq_expr: "auth.uid"}, couponId: {eq: $id}}, limit: 1) {
+    coupon {
+      couponRedemptions_on_coupon(orderBy: [{createdAt: DESC}, {orderId: ASC}], limit: 30, offset: $offset) {
+        orderId codeSnapshot createdAt
+        order { folio status discountCents }
+      }
+    }
+  }
+}
+
+query ListStaffReturnRequests($offset: Int!, $orderId: UUID) @auth(level: USER_EMAIL_VERIFIED) {
+  staffReturnCases(where: {readerUid: {eq_expr: "auth.uid"}, request: {orderId: {eq: $orderId}}},
+    orderBy: [{request: {createdAt: DESC}}, {requestId: ASC}], limit: 30, offset: $offset) {
+    request { id folio kind status createdAt order { folio } }
+  }
+}
+
+query ListStaffTickets($offset: Int!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffTickets(where: {readerUid: {eq_expr: "auth.uid"}},
+    orderBy: [{ticket: {updatedAt: DESC}}, {ticketId: ASC}], limit: 30, offset: $offset) {
+    ticket { id folio subject status assignedToUid updatedAt }
+  }
+}
+
+query ListStaffOperators($offset: Int!) @auth(level: USER_EMAIL_VERIFIED) {
+  staffOperators(where: {readerUid: {eq_expr: "auth.uid"}},
+    orderBy: [{displayName: ASC}, {uid: ASC}], limit: 30, offset: $offset) { uid displayName }
+}
+
+query GetOperationTotals @auth(level: USER_EMAIL_VERIFIED) {
+  staffOperationTotals(where: {readerUid: {eq_expr: "auth.uid"}}, limit: 1) {
+    orderCount ordersByStatus availableUnits lowStockVariants grossCents refundedCents refundCount
+    cancellationRequests returnRequests exchangeRequests warrantyRequests couponUses
+  }
+}

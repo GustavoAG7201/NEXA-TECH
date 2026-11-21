@@ -5,11 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "node scripts/local-postgres18.mjs --store",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:dataconnect": "node --test --test-force-exit tests/dataconnect-phase-c.test.mjs",
+    "test:postgres18": "node scripts/local-postgres18.mjs",
+    "test:e1": "node scripts/local-postgres18.mjs --phase-e1",
+    "test:e2": "node scripts/local-postgres18.mjs --phase-e2",
+    "test:e3": "node scripts/local-postgres18.mjs --phase-e3",
+    "seed:dataconnect": "node scripts/local-dataconnect.mjs"
   },
   "dependencies": {
+    "firebase": "^12.11.0",
     "lucide-react": "^1.35.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

@@ -1,0 +1,221 @@
+mutation SaveCategory(
+  $key: UUID!, $id: UUID, $slug: String!, $name: String!, $description: String,
+  $archived: Boolean!
+) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "SAVE_CATEGORY",
+    input_expr: """
+      {
+        'id': (has(vars.id) ? vars.id : null),
+        'slug': vars.slug,
+        'name': vars.name,
+        'description': (has(vars.description) ? vars.description : null),
+        'archived': vars.archived
+      }
+    """
+  })
+}
+
+mutation SaveProduct(
+  $key: UUID!, $id: UUID, $categoryId: UUID!, $slug: String!, $name: String!,
+  $description: String!, $specs: Any, $status: String!, $featured: Boolean!
+) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "SAVE_PRODUCT",
+    input_expr: """
+      {
+        'id': (has(vars.id) ? vars.id : null),
+        'categoryId': vars.categoryId,
+        'slug': vars.slug,
+        'name': vars.name,
+        'description': vars.description,
+        'specs': (has(vars.specs) ? vars.specs : null),
+        'status': vars.status,
+        'featured': vars.featured
+      }
+    """
+  })
+}
+
+mutation ArchiveProduct($key: UUID!, $id: UUID!) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "ARCHIVE_PRODUCT",
+    input_expr: "{'id': vars.id}"
+  })
+}
+
+mutation SaveVariant(
+  $key: UUID!, $id: UUID, $productId: UUID!, $taxClass: String!, $sku: String!,
+  $label: String!, $color: String, $price: Int64!, $compareAt: Int64, $cost: Int64,
+  $threshold: Int!, $weight: Int, $length: Int, $width: Int, $height: Int,
+  $archived: Boolean!
+) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "SAVE_VARIANT",
+    input_expr: """
+      {
+        'id': (has(vars.id) ? vars.id : null),
+        'productId': vars.productId,
+        'taxClass': vars.taxClass,
+        'sku': vars.sku,
+        'label': vars.label,
+        'color': (has(vars.color) ? vars.color : null),
+        'price': vars.price,
+        'compareAt': (has(vars.compareAt) ? vars.compareAt : null),
+        'cost': (has(vars.cost) ? vars.cost : null),
+        'threshold': vars.threshold,
+        'weight': (has(vars.weight) ? vars.weight : null),
+        'length': (has(vars.length) ? vars.length : null),
+        'width': (has(vars.width) ? vars.width : null),
+        'height': (has(vars.height) ? vars.height : null),
+        'archived': vars.archived
+      }
+    """
+  })
+}
+
+mutation SaveProductImage(
+  $key: UUID!, $id: UUID, $productId: UUID!, $src: String!, $alt: String!, $position: Int!,
+  $credit: String
+) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "SAVE_PRODUCT_IMAGE",
+    input_expr: """
+      {
+        'id': (has(vars.id) ? vars.id : null),
+        'productId': vars.productId,
+        'src': vars.src,
+        'alt': vars.alt,
+        'position': vars.position,
+        'credit': (has(vars.credit) ? vars.credit : null)
+      }
+    """
+  })
+}
+
+mutation AdjustInventory($key: UUID!, $variantId: UUID!, $delta: Int!, $reason: String!) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "ADJUST_INVENTORY",
+    input_expr: "{'variantId': vars.variantId, 'delta': vars.delta, 'reason': vars.reason}"
+  })
+}
+
+mutation SaveCoupon(
+  $key: UUID!, $id: UUID, $code: String!, $kind: String!, $fixed: Int64, $bps: Int,
+  $minimum: Int64!, $startsAt: Timestamp!, $endsAt: Timestamp!, $maxUses: Int,
+  $maxPerUser: Int, $archived: Boolean!
+) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "SAVE_COUPON",
+    input_expr: """
+      {
+        'id': (has(vars.id) ? vars.id : null),
+        'code': vars.code,
+        'kind': vars.kind,
+        'fixed': (has(vars.fixed) ? vars.fixed : null),
+        'bps': (has(vars.bps) ? vars.bps : null),
+        'minimum': vars.minimum,
+        'startsAt': string(vars.startsAt),
+        'endsAt': string(vars.endsAt),
+        'maxUses': (has(vars.maxUses) ? vars.maxUses : null),
+        'maxPerUser': (has(vars.maxPerUser) ? vars.maxPerUser : null),
+        'archived': vars.archived
+      }
+    """
+  })
+}
+
+mutation ModerateReview($key: UUID!, $id: UUID!, $approve: Boolean!) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "MODERATE_REVIEW",
+    input_expr: "{'id': vars.id, 'approve': vars.approve}"
+  })
+}
+
+mutation PublishPolicy($key: UUID!, $kind: String!, $title: String!, $body: String!) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "PUBLISH_POLICY",
+    input_expr: "{'kind': vars.kind, 'title': vars.title, 'body': vars.body}"
+  })
+}
+
+mutation ChangeUserRole($key: UUID!, $uid: String!, $role: String!, $enabled: Boolean!) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "CHANGE_USER_ROLE",
+    input_expr: "{'uid': vars.uid, 'role': vars.role, 'enabled': vars.enabled}"
+  })
+}
+
+mutation RecordShipmentEvent(
+  $key: UUID!, $orderId: UUID!, $event: String!, $carrier: String, $trackingCode: String,
+  $detail: String
+) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "RECORD_SHIPMENT",
+    input_expr: """
+      {
+        'orderId': vars.orderId,
+        'event': vars.event,
+        'carrier': (has(vars.carrier) ? vars.carrier : null),
+        'trackingCode': (has(vars.trackingCode) ? vars.trackingCode : null),
+        'detail': (has(vars.detail) ? vars.detail : null)
+      }
+    """
+  })
+}
+
+mutation AssignCase($key: UUID!, $id: UUID!, $assignedTo: String) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "ASSIGN_CASE",
+    input_expr: "{'id': vars.id, 'assignedTo': (has(vars.assignedTo) ? vars.assignedTo : null)}"
+  })
+}
+
+mutation ReviewReturnRequest($key: UUID!, $id: UUID!, $state: String!, $detail: String, $resolution: String) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "REVIEW_RETURN",
+    input_expr: """
+      {
+        'id': vars.id,
+        'state': vars.state,
+        'detail': (has(vars.detail) ? vars.detail : null),
+        'resolution': (has(vars.resolution) ? vars.resolution : null)
+      }
+    """
+  })
+}
+
+mutation RecordInspection($key: UUID!, $id: UUID!, $items: Any!, $detail: String) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "RECORD_INSPECTION",
+    input_expr: "{'id': vars.id, 'items': vars.items, 'detail': (has(vars.detail) ? vars.detail : null)}"
+  })
+}
+
+mutation ApproveRefund($key: UUID!, $id: UUID!, $shipping: Boolean!, $detail: String!) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "APPROVE_REFUND",
+    input_expr: "{'id': vars.id, 'shipping': vars.shipping, 'detail': vars.detail}"
+  })
+}
+
+mutation ResolveReplacement($key: UUID!, $id: UUID!, $detail: String!) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "RESOLVE_REPLACEMENT",
+    input_expr: "{'id': vars.id, 'detail': vars.detail}"
+  })
+}
+
+mutation AssignTicket($key: UUID!, $id: UUID!, $assignedTo: String) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "ASSIGN_TICKET",
+    input_expr: "{'id': vars.id, 'assignedTo': (has(vars.assignedTo) ? vars.assignedTo : null)}"
+  })
+}
+
+mutation ReplyToCustomer($key: UUID!, $id: UUID!, $body: String!, $internal: Boolean!, $close: Boolean!) @auth(level: USER_EMAIL_VERIFIED) {
+  commerceCommand_insert(data: {
+    actorUid_expr: "auth.uid", idempotencyKey: $key, kind: "REPLY_TO_CUSTOMER",
+    input_expr: "{'id': vars.id, 'body': vars.body, 'internal': vars.internal, 'close': vars.close}"
+  })
+}

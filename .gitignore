@@ -11,6 +11,15 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
+
+# SQL Connect emulator output and generated SDK guides
+dataconnect/.dataconnect/schema/main/
+dataconnect/.dataconnect/pgliteData/
+src/dataconnect-generated/*/.guides/
+src/dataconnect-generated/*/README.md
 
 # Editor directories and files
 .vscode/*

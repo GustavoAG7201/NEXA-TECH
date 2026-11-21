@@ -1,0 +1,6 @@
+connectorId: staff
+generate:
+  javascriptSdk:
+    - outputDir: ../../src/dataconnect-generated/staff
+      package: "@nexatech/staff"
+      react: false

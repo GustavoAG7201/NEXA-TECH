@@ -1,0 +1,126 @@
+mutation EnsureProfile($displayName: String!) @auth(level: USER) {
+  appUser_insert(data: {uid_expr: "auth.uid", displayName: $displayName})
+}
+
+query GetMyProfile @auth(level: USER) {
+  appUsers(where: {uid: {eq_expr: "auth.uid"}, status: {eq: "ACTIVE"}}, limit: 1) {
+    uid displayName phone userRoles_on_user { roleCode }
+  }
+}
+
+query ListMyAddresses @auth(level: USER) {
+  addresses(where: {userUid: {eq_expr: "auth.uid"}, archivedAt: {isNull: true}, user: {status: {eq: "ACTIVE"}}},
+    orderBy: [{isDefault: DESC}, {createdAt: ASC}], limit: 30) {
+    id label recipient phone line1 line2 district city stateCode postalCode countryCode isDefault
+  }
+}
+
+query GetMyCart @auth(level: USER) {
+  carts(where: {userUid: {eq_expr: "auth.uid"}, status: {eq: "ACTIVE"}, user: {status: {eq: "ACTIVE"}}}, limit: 1) {
+    id revision
+    cartItems_on_cart(orderBy: {createdAt: ASC}, limit: 50) {
+      variantId quantity
+      variant { sku optionLabel stockOnHand unitPriceCents archivedAt product { id slug name status } }
+    }
+  }
+}
+
+query ListMyFavorites($offset: Int) @auth(level: USER) {
+  favorites(where: {userUid: {eq_expr: "auth.uid"}, user: {status: {eq: "ACTIVE"}}},
+    orderBy: [{createdAt: DESC}, {productId: ASC}], limit: 100, offset: $offset) {
+    productId product { slug name status }
+  }
+}
+
+query ListMyOrders($offset: Int!) @auth(level: USER) {
+  customerOrders(where: {userUid: {eq_expr: "auth.uid"}, user: {status: {eq: "ACTIVE"}}},
+    orderBy: [{createdAt: DESC}, {id: ASC}], limit: 30, offset: $offset) {
+    id folio status currency totalCents confirmedAt
+  }
+}
+
+query GetMyOrder($id: UUID!) @auth(level: USER) {
+  customerOrders(where: {id: {eq: $id}, userUid: {eq_expr: "auth.uid"}, user: {status: {eq: "ACTIVE"}}}, limit: 1) {
+    id folio status currency contactEmail subtotalCents discountCents itemsTaxCents shippingCents shippingTaxCents totalCents confirmedAt
+    payment_on_order { status }
+    orderItems_on_order(orderBy: {id: ASC}, limit: 50) {
+      id skuSnapshot nameSnapshot optionSnapshot quantity unitPriceCents discountCents taxCents
+    }
+    orderAddress_on_order { recipient phone line1 line2 district city stateCode postalCode countryCode }
+    orderStatusEvents_on_order(orderBy: [{createdAt: ASC}, {id: ASC}]) { newStatus createdAt }
+    shipment_on_order { status methodSnapshot carrier trackingCode estimatedFrom estimatedTo shippedAt deliveredAt
+      shipmentEvents_on_shipment(orderBy: {occurredAt: DESC}, limit: 50) { eventType publicDetail occurredAt }
+    }
+    termsAcceptances_on_order { evidenceKind presentedAt document { id kind version sha256 title body } }
+  }
+}
+
+query GetMyPaymentStatus($id: UUID!) @auth(level: USER) {
+  payments(where: {id: {eq: $id}, checkoutCommand: {
+    actorUid: {eq_expr: "auth.uid"}, actor: {status: {eq: "ACTIVE"}}
+  }}, limit: 1) { id orderId status amountCents decisionCode decidedAt }
+}
+
+query ListMyNotifications($offset: Int!) @auth(level: USER) {
+  notifications(where: {userUid: {eq_expr: "auth.uid"}, user: {status: {eq: "ACTIVE"}}},
+    orderBy: [{createdAt: DESC}, {id: ASC}], limit: 30, offset: $offset) {
+    id orderId returnRequestId supportTicketId kind readAt createdAt
+  }
+}
+
+query ListMyReturnRequests($offset: Int!, $orderId: UUID) @auth(level: USER) {
+  returnRequests(where: {orderId: {eq: $orderId}, order: {userUid: {eq_expr: "auth.uid"}, user: {status: {eq: "ACTIVE"}}}},
+    orderBy: [{createdAt: DESC}, {id: ASC}], limit: 30, offset: $offset) {
+    id orderId folio kind status reasonCode resolutionCode createdAt
+  }
+}
+
+query GetMyReturnRequest($id: UUID!) @auth(level: USER) {
+  returnRequests(where: {id: {eq: $id}, order: {userUid: {eq_expr: "auth.uid"}, user: {status: {eq: "ACTIVE"}}}}, limit: 1) {
+    id orderId folio kind status reasonCode description resolutionCode resolutionNote createdAt closedAt
+    returnItems_on_request {
+      id orderItemId requestedQty approvedQty receivedQty restockedQty conditionCode
+      orderItem { skuSnapshot nameSnapshot }
+    }
+    refunds_on_request(where: {status: {eq: "APPROVED"}}) { id amountCents shippingRefundCents decidedAt }
+    returnEvents_on_request(orderBy: {createdAt: ASC}, limit: 100) { previousStatus newStatus publicDetail createdAt }
+    returnEvidences_on_request(where: {deletedAt: {isNull: true}}, limit: 10) { id mediaType sizeBytes sha256 createdAt }
+  }
+}
+
+query GetMyReturnEvidence($id: UUID!) @auth(level: USER) {
+  returnEvidences(where: {id: {eq: $id}, deletedAt: {isNull: true},
+    request: {order: {userUid: {eq_expr: "auth.uid"}, user: {status: {eq: "ACTIVE"}}}}}, limit: 1) {
+    id mediaType sizeBytes contentB64 sha256
+  }
+}
+
+query GetMyTickets($offset: Int!) @auth(level: USER) {
+  supportTickets(where: {requesterUid: {eq_expr: "auth.uid"}, requester: {status: {eq: "ACTIVE"}}},
+    orderBy: [{createdAt: DESC}, {id: ASC}], limit: 30, offset: $offset) {
+    id folio subject status createdAt closedAt
+    supportMessages_on_ticket(where: {visibility: {eq: "CUSTOMER_VISIBLE"}}, orderBy: {createdAt: ASC}, limit: 100) {
+      id body createdAt
+    }
+  }
+}
+
+query GetMyTicket($id: UUID!, $messageOffset: Int!) @auth(level: USER) {
+  supportTickets(where: {id: {eq: $id}, requesterUid: {eq_expr: "auth.uid"}, requester: {status: {eq: "ACTIVE"}}}, limit: 1) {
+    id folio subject status orderId createdAt closedAt
+    supportMessages_on_ticket(where: {visibility: {eq: "CUSTOMER_VISIBLE"}},
+      orderBy: [{createdAt: DESC}, {id: ASC}], limit: 100, offset: $messageOffset) { id body createdAt authorUid }
+  }
+}
+
+query GetMyCommandResult($key: UUID!) @auth(level: USER) {
+  commerceCommands(where: {actorUid: {eq_expr: "auth.uid"}, idempotencyKey: {eq: $key}, actor: {status: {eq: "ACTIVE"}}}, limit: 1) {
+    kind inputVersion inputDigest status resultCode resultId
+  }
+}
+
+query GetMyQuote($id: UUID!) @auth(level: USER) {
+  checkoutQuotes(where: {id: {eq: $id}, cart: {userUid: {eq_expr: "auth.uid"}, user: {status: {eq: "ACTIVE"}}}}, limit: 1) {
+    id cartId addressId methodCode cartRevision pricingDigest summary expiresAt
+  }
+}

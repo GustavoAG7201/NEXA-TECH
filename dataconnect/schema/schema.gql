@@ -1,0 +1,553 @@
+# PostgreSQL table layout. Supplemental constraints and transactional routines
+# are maintained in dataconnect/migrations.
+
+type AppUser @table(key: ["uid"]) {
+  uid: String!
+  updatedAt: Timestamp! @default(sql: "now()")
+  displayName: String!
+  phone: String
+  status: String! @default(value: "ACTIVE")
+  disabledAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type Role @table(key: ["code"]) {
+  code: String!
+  label: String!
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type UserRole @table(key: ["userUid", "roleCode"]) {
+  user: AppUser! @ref(fields: ["userUid"], references: ["uid"])
+  userUid: String!
+  role: Role! @ref(fields: ["roleCode"], references: ["code"])
+  roleCode: String!
+  grantedBy: AppUser @ref(fields: ["grantedByUid"], references: ["uid"])
+  grantedByUid: String
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type Address @table @index(fields: ["userUid", "archivedAt", "id"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  user: AppUser! @ref(fields: ["userUid"], references: ["uid"])
+  userUid: String!
+  label: String!
+  recipient: String!
+  phone: String!
+  line1: String!
+  line2: String
+  district: String!
+  city: String!
+  stateCode: String!
+  postalCode: String!
+  countryCode: String! @default(value: "MX")
+  isDefault: Boolean! @default(value: false)
+  archivedAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type Category @table {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  slug: String! @unique
+  name: String!
+  description: String
+  archivedAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type TaxClass @table(key: ["code"]) {
+  code: String!
+  label: String!
+  rateBps: Int!
+  updatedAt: Timestamp! @default(sql: "now()")
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type Product @table @index(fields: ["categoryId", "status", "id"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  category: Category! @ref(fields: ["categoryId"], references: ["id"])
+  categoryId: UUID!
+  slug: String! @unique
+  legacyId: Int @unique
+  name: String!
+  description: String!
+  specs: Any
+  status: String! @default(value: "DRAFT")
+  featured: Boolean! @default(value: false)
+  archivedAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type ProductImage @table @unique(fields: ["productId", "position"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  product: Product! @ref(fields: ["productId"], references: ["id"])
+  productId: UUID!
+  src: String!
+  alt: String!
+  position: Int!
+  credit: String
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type ProductVariant @table @unique(fields: ["productId", "optionLabel"]) @index(fields: ["productId", "archivedAt", "unitPriceCents", "id"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  product: Product! @ref(fields: ["productId"], references: ["id"])
+  productId: UUID!
+  taxClass: TaxClass! @ref(fields: ["taxClassCode"], references: ["code"])
+  taxClassCode: String!
+  sku: String! @unique
+  optionLabel: String!
+  color: String
+  unitPriceCents: Int64!
+  compareAtCents: Int64
+  unitCostCents: Int64
+  stockOnHand: Int! @default(value: 0)
+  lowStockThreshold: Int! @default(value: 0)
+  weightG: Int
+  lengthMm: Int
+  widthMm: Int
+  heightMm: Int
+  archivedAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type Review @table @unique(fields: ["authorUid", "productId"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  author: AppUser! @ref(fields: ["authorUid"], references: ["uid"])
+  authorUid: String!
+  product: Product! @ref(fields: ["productId"], references: ["id"])
+  productId: UUID!
+  orderItem: OrderItem! @ref(fields: ["orderItemId"], references: ["id"]) @unique
+  orderItemId: UUID!
+  rating: Int!
+  body: String
+  moderationStatus: String! @default(value: "PENDING")
+  moderatedBy: AppUser @ref(fields: ["moderatedByUid"], references: ["uid"])
+  moderatedByUid: String
+  moderatedAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type Favorite @table(key: ["userUid", "productId"]) {
+  user: AppUser! @ref(fields: ["userUid"], references: ["uid"])
+  userUid: String!
+  product: Product! @ref(fields: ["productId"], references: ["id"])
+  productId: UUID!
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type Cart @table {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  user: AppUser! @ref(fields: ["userUid"], references: ["uid"])
+  userUid: String!
+  status: String! @default(value: "ACTIVE")
+  revision: Int64! @default(value: 0)
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type CartItem @table(key: ["cartId", "variantId"]) {
+  updatedAt: Timestamp! @default(sql: "now()")
+  cart: Cart! @ref(fields: ["cartId"], references: ["id"])
+  cartId: UUID!
+  variant: ProductVariant! @ref(fields: ["variantId"], references: ["id"])
+  variantId: UUID!
+  quantity: Int!
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type DeliveryZone @table @unique(fields: ["countryCode", "stateCode"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  countryCode: String! @default(value: "MX")
+  stateCode: String!
+  label: String!
+  active: Boolean! @default(value: true)
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type DeliveryMethod @table(key: ["code"]) {
+  updatedAt: Timestamp! @default(sql: "now()")
+  code: String!
+  label: String!
+  active: Boolean! @default(value: true)
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type DeliveryRate @table(key: ["zoneId", "methodCode"]) {
+  updatedAt: Timestamp! @default(sql: "now()")
+  zone: DeliveryZone! @ref(fields: ["zoneId"], references: ["id"])
+  zoneId: UUID!
+  method: DeliveryMethod! @ref(fields: ["methodCode"], references: ["code"])
+  methodCode: String!
+  taxClass: TaxClass! @ref(fields: ["taxClassCode"], references: ["code"])
+  taxClassCode: String!
+  priceCents: Int64!
+  freeThresholdCents: Int64
+  etaMinDays: Int!
+  etaMaxDays: Int!
+  active: Boolean! @default(value: true)
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type CheckoutQuote @table @index(fields: ["cartId", "expiresAt"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  cart: Cart! @ref(fields: ["cartId"], references: ["id"])
+  cartId: UUID!
+  address: Address! @ref(fields: ["addressId"], references: ["id"])
+  addressId: UUID!
+  rate: DeliveryRate! @ref(fields: ["zoneId", "methodCode"], references: ["zoneId", "methodCode"])
+  zoneId: UUID!
+  methodCode: String!
+  coupon: Coupon @ref(fields: ["couponId"], references: ["id"])
+  couponId: UUID
+  cartRevision: Int64!
+  pricingDigest: String!
+  summary: Any!
+  expiresAt: Timestamp!
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type CustomerOrder @table @index(fields: ["userUid", "createdAt", "id"]) @index(fields: ["status", "createdAt", "id"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  user: AppUser! @ref(fields: ["userUid"], references: ["uid"])
+  userUid: String!
+  cart: Cart! @ref(fields: ["cartId"], references: ["id"]) @unique
+  cartId: UUID!
+  quote: CheckoutQuote! @ref(fields: ["quoteId"], references: ["id"]) @unique
+  quoteId: UUID!
+  folio: String! @unique
+  status: String! @default(value: "PAID")
+  currency: String! @default(value: "MXN")
+  contactEmail: String!
+  subtotalCents: Int64!
+  discountCents: Int64!
+  itemsTaxCents: Int64!
+  shippingCents: Int64!
+  shippingTaxCents: Int64!
+  shippingTaxBps: Int!
+  totalCents: Int64!
+  confirmedAt: Timestamp!
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type OrderAddress @table(key: ["orderId"]) {
+  order: CustomerOrder! @ref(fields: ["orderId"], references: ["id"])
+  orderId: UUID!
+  recipient: String!
+  phone: String!
+  line1: String!
+  line2: String
+  district: String!
+  city: String!
+  stateCode: String!
+  postalCode: String!
+  countryCode: String!
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type OrderItem @table @unique(fields: ["orderId", "variantId"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  order: CustomerOrder! @ref(fields: ["orderId"], references: ["id"])
+  orderId: UUID!
+  variant: ProductVariant! @ref(fields: ["variantId"], references: ["id"])
+  variantId: UUID!
+  skuSnapshot: String!
+  nameSnapshot: String!
+  optionSnapshot: String!
+  descriptionSnapshot: String!
+  quantity: Int!
+  unitPriceCents: Int64!
+  discountCents: Int64!
+  taxBps: Int!
+  taxCents: Int64!
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type OrderStatusEvent @table @index(fields: ["orderId", "createdAt", "id"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  order: CustomerOrder! @ref(fields: ["orderId"], references: ["id"])
+  orderId: UUID!
+  command: CommerceCommand! @ref(fields: ["commandId"], references: ["id"])
+  commandId: UUID!
+  previousStatus: String
+  newStatus: String!
+  reason: String
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type Payment @table {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  quote: CheckoutQuote! @ref(fields: ["quoteId"], references: ["id"])
+  quoteId: UUID!
+  order: CustomerOrder @ref(fields: ["orderId"], references: ["id"]) @unique
+  orderId: UUID
+  checkoutCommand: CommerceCommand! @ref(fields: ["checkoutCommandId"], references: ["id"]) @unique
+  checkoutCommandId: UUID!
+  providerReference: String! @unique
+  provider: String! @default(value: "SIMULATED")
+  status: String!
+  amountCents: Int64!
+  termsAcceptedAt: Timestamp!
+  decisionCode: String
+  decidedAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type Shipment @table {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  order: CustomerOrder! @ref(fields: ["orderId"], references: ["id"]) @unique
+  orderId: UUID!
+  methodSnapshot: String!
+  carrier: String
+  trackingCode: String
+  estimatedFrom: Date!
+  estimatedTo: Date!
+  status: String! @default(value: "PLANNED")
+  shippedAt: Timestamp
+  deliveredAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type ShipmentEvent @table @index(fields: ["shipmentId", "occurredAt", "id"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  shipment: Shipment! @ref(fields: ["shipmentId"], references: ["id"])
+  shipmentId: UUID!
+  command: CommerceCommand! @ref(fields: ["commandId"], references: ["id"])
+  commandId: UUID!
+  eventType: String!
+  publicDetail: String
+  occurredAt: Timestamp!
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type InventoryMovement @table @index(fields: ["variantId", "createdAt", "id"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  variant: ProductVariant! @ref(fields: ["variantId"], references: ["id"])
+  variantId: UUID!
+  command: CommerceCommand @ref(fields: ["commandId"], references: ["id"])
+  commandId: UUID
+  orderItem: OrderItem @ref(fields: ["orderItemId"], references: ["id"])
+  orderItemId: UUID
+  returnItem: ReturnItem @ref(fields: ["returnItemId"], references: ["id"])
+  returnItemId: UUID
+  kind: String!
+  delta: Int!
+  reason: String!
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type Coupon @table {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  code: String! @unique
+  kind: String!
+  fixedAmountCents: Int64
+  percentageBps: Int
+  minSubtotalCents: Int64! @default(value: 0)
+  startsAt: Timestamp!
+  endsAt: Timestamp!
+  totalLimit: Int
+  perUserLimit: Int
+  archivedAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type CouponRedemption @table(key: ["orderId"]) @index(fields: ["couponId", "orderId"]) {
+  order: CustomerOrder! @ref(fields: ["orderId"], references: ["id"])
+  orderId: UUID!
+  coupon: Coupon! @ref(fields: ["couponId"], references: ["id"])
+  couponId: UUID!
+  codeSnapshot: String!
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type ReturnRequest @table @index(fields: ["status", "createdAt", "id"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  order: CustomerOrder! @ref(fields: ["orderId"], references: ["id"])
+  orderId: UUID!
+  folio: String! @unique
+  assignedTo: AppUser @ref(fields: ["assignedToUid"], references: ["uid"])
+  assignedToUid: String
+  kind: String!
+  reasonCode: String!
+  description: String!
+  status: String! @default(value: "SUBMITTED")
+  resolutionCode: String
+  resolutionNote: String
+  closedAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type ReturnItem @table @unique(fields: ["returnRequestId", "orderItemId"]) @index(fields: ["orderItemId"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  request: ReturnRequest! @ref(fields: ["returnRequestId"], references: ["id"])
+  returnRequestId: UUID!
+  orderItem: OrderItem! @ref(fields: ["orderItemId"], references: ["id"])
+  orderItemId: UUID!
+  requestedQty: Int!
+  approvedQty: Int
+  receivedQty: Int! @default(value: 0)
+  restockedQty: Int! @default(value: 0)
+  conditionCode: String
+  inspectionNote: String
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type ReturnEvent @table @index(fields: ["returnRequestId", "createdAt", "id"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  request: ReturnRequest! @ref(fields: ["returnRequestId"], references: ["id"])
+  returnRequestId: UUID!
+  command: CommerceCommand! @ref(fields: ["commandId"], references: ["id"])
+  commandId: UUID!
+  previousStatus: String
+  newStatus: String!
+  publicDetail: String
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type ReturnEvidence @table @unique(fields: ["returnRequestId", "sha256"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  request: ReturnRequest! @ref(fields: ["returnRequestId"], references: ["id"])
+  returnRequestId: UUID!
+  uploadedBy: AppUser! @ref(fields: ["uploadedByUid"], references: ["uid"])
+  uploadedByUid: String!
+  mediaType: String!
+  contentB64: String
+  sizeBytes: Int!
+  sha256: String!
+  deletedAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type Refund @table @index(fields: ["paymentId", "status"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  payment: Payment! @ref(fields: ["paymentId"], references: ["id"])
+  paymentId: UUID!
+  request: ReturnRequest! @ref(fields: ["returnRequestId"], references: ["id"])
+  returnRequestId: UUID!
+  command: CommerceCommand! @ref(fields: ["commandId"], references: ["id"])
+  commandId: UUID!
+  providerReference: String! @unique
+  status: String!
+  amountCents: Int64!
+  shippingRefundCents: Int64! @default(value: 0)
+  decidedAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type RefundItem @table(key: ["refundId", "returnItemId"]) {
+  refund: Refund! @ref(fields: ["refundId"], references: ["id"])
+  refundId: UUID!
+  returnItem: ReturnItem! @ref(fields: ["returnItemId"], references: ["id"])
+  returnItemId: UUID!
+  amountCents: Int64!
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type SupportTicket @table @index(fields: ["requesterUid", "createdAt", "id"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  updatedAt: Timestamp! @default(sql: "now()")
+  requester: AppUser! @ref(fields: ["requesterUid"], references: ["uid"])
+  requesterUid: String!
+  order: CustomerOrder @ref(fields: ["orderId"], references: ["id"])
+  orderId: UUID
+  assignedTo: AppUser @ref(fields: ["assignedToUid"], references: ["uid"])
+  assignedToUid: String
+  folio: String! @unique
+  subject: String!
+  status: String! @default(value: "OPEN")
+  closedAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type SupportMessage @table @index(fields: ["ticketId", "createdAt", "id"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  ticket: SupportTicket! @ref(fields: ["ticketId"], references: ["id"])
+  ticketId: UUID!
+  author: AppUser! @ref(fields: ["authorUid"], references: ["uid"])
+  authorUid: String!
+  body: String!
+  visibility: String! @default(value: "CUSTOMER_VISIBLE")
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type Notification @table @unique(fields: ["commandId", "userUid", "kind"]) @index(fields: ["userUid", "readAt", "createdAt"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  user: AppUser! @ref(fields: ["userUid"], references: ["uid"])
+  userUid: String!
+  command: CommerceCommand! @ref(fields: ["commandId"], references: ["id"])
+  commandId: UUID!
+  order: CustomerOrder @ref(fields: ["orderId"], references: ["id"])
+  orderId: UUID
+  returnRequest: ReturnRequest @ref(fields: ["returnRequestId"], references: ["id"])
+  returnRequestId: UUID
+  supportTicket: SupportTicket @ref(fields: ["supportTicketId"], references: ["id"])
+  supportTicketId: UUID
+  kind: String!
+  readAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type CommerceCommand @table @unique(fields: ["actorUid", "idempotencyKey"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  actor: AppUser! @ref(fields: ["actorUid"], references: ["uid"])
+  actorUid: String!
+  idempotencyKey: UUID!
+  kind: String!
+  inputVersion: Int! @default(value: 1)
+  inputDigest: String! @default(value: "")
+  input: Any
+  status: String! @default(value: "REQUESTED")
+  resultCode: String
+  resultId: UUID
+  completedAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type AuditLog @table @index(fields: ["entityType", "entityKey", "createdAt"]) @index(fields: ["actorUid", "createdAt"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  actor: AppUser @ref(fields: ["actorUid"], references: ["uid"])
+  actorUid: String
+  command: CommerceCommand @ref(fields: ["commandId"], references: ["id"])
+  commandId: UUID
+  action: String!
+  entityType: String!
+  entityKey: String!
+  metadata: Any
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type LegalDocument @table @unique(fields: ["kind", "version"]) {
+  id: UUID! @default(sql: "gen_random_uuid()")
+  kind: String!
+  version: Int!
+  title: String!
+  body: String!
+  sha256: String!
+  publishedAt: Timestamp
+  withdrawnAt: Timestamp
+  createdAt: Timestamp! @default(sql: "now()")
+}
+
+type TermsAcceptance @table(key: ["orderId", "legalDocumentId"]) {
+  order: CustomerOrder! @ref(fields: ["orderId"], references: ["id"])
+  orderId: UUID!
+  document: LegalDocument! @ref(fields: ["legalDocumentId"], references: ["id"])
+  legalDocumentId: UUID!
+  evidenceKind: String!
+  presentedAt: Timestamp!
+  createdAt: Timestamp! @default(sql: "now()")
+}
