@@ -13,3 +13,5 @@ npm run dev
 Abre <http://127.0.0.1:5173>. En PowerShell puede usarse `npm.cmd`. El instalador conserva el clúster en `.nexa/local/pgdata` y guarda la configuración privada en `.env`. Para montar la API, configurar SMTP, crear al primer administrador o restaurar un respaldo, sigue la [guía de instalación](docs/INSTALACION_SERVIDOR_EXTERNO.md).
 
 Las migraciones y semillas originales siguen en `dataconnect/migrations` y `dataconnect/seed`. El resto de SQL Connect y las guías de fases anteriores quedan como referencia histórica.
+
+Para desplegar en la infraestructura Romex, donde Cloudflare y Traefik ya administran HTTPS y los hostnames, sigue [la guía de despliegue Romex](docs/DESPLIEGUE_ROMEX.md). Conserva `deploy/compose.yaml` para instalaciones autónomas con Caddy expuesto directamente; en Romex usa exclusivamente `deploy/compose.romex.yaml` y `deploy/nexatech-romex.sh`.
