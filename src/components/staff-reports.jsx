@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getAdminReports, getOperationTotals, listLowStock, listReturnSummary, listSkuSales } from '../dataconnect-generated/staff/esm/index.esm.js';
+import { getAdminReports, getOperationTotals, listLowStock, listReturnSummary, listSkuSales } from '../lib/staff-api.js';
 import { useResource } from '../hooks/useResource.js';
 import { canonicalUuid, exactMoney, orderStatus } from '../lib/commerce.js';
 import { collectPages, labelFor, orderStates, textValue } from '../lib/operations.js';

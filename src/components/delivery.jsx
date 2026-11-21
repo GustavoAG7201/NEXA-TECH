@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { saveAddress } from '../dataconnect-generated/account/esm/index.esm.js';
+import { saveAddress } from '../lib/account-api.js';
 import { commerceMessage, resultId, runCommand } from '../lib/commerce.js';
 import { AddressText } from './purchase.jsx';
 

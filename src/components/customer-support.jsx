@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import * as account from '../dataconnect-generated/account/esm/index.esm.js';
+import * as account from '../lib/account-api.js';
 import { useResource } from '../hooks/useResource.js';
 import { canonicalUuid, loadOrder, orderDate, readOwned } from '../lib/commerce.js';
 import { labelFor, messagePageSize, textValue } from '../lib/operations.js';
@@ -35,7 +35,7 @@ function OpenTicket({ uid, orderId }) {
     <Link className="text-link" to={route}>Volver a mis tickets</Link>
     <PurchaseResource resource={order} label="Consultando pedido…">{value => orderId && !value ? <State title="Pedido no disponible"
       action={<Link className="button secondary" to={route + '/nuevo'}>Abrir ticket general</Link>} /> :
-      <CommandForm uid={uid} command={account.openSupportTicketRef} className="surface open-ticket"
+      <CommandForm uid={uid} command={account.openSupportTicket} className="surface open-ticket"
         title="Datos de la solicitud" submitLabel="Enviar a soporte" onSaved={id => navigate(route + '/' + canonicalUuid(id))}
         values={form => ({ orderId, subject: textValue(form, 'subject'), body: textValue(form, 'body') })}>
         {value && <p>Asociado al pedido {value.folio}</p>}
@@ -65,7 +65,7 @@ function TicketDetail({ uid, id }) {
         <Pager size={messagePageSize} offset={offset} count={ticket.supportMessages_on_ticket.length}
           onChange={setOffset} label="Páginas de conversación" />
       </section>
-      <CommandForm uid={uid} command={account.replyToTicketRef} className="surface customer-reply"
+      <CommandForm uid={uid} command={account.replyToTicket} className="surface customer-reply"
         title="Responder al expediente" submitLabel={ticket.status === 'RESOLVED' ? 'Reabrir con respuesta' : 'Enviar respuesta'}
         values={form => ({ id, body: textValue(form, 'body') })}
         onSaved={() => { setSaved(true); setOffset(0); resource.retry(); }}>

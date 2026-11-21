@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { commerceMessage, orderDate } from '../lib/commerce.js';
 import { executeOperation, labelFor, OperationInputError, pageSize } from '../lib/operations.js';
 
-export function CommandForm({ uid, command, connector, values, onSaved, submitLabel, title, children, className = '' }) {
+export function CommandForm({ uid, command, values, onSaved, submitLabel, title, children, className = '' }) {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const submitting = useRef(false);
@@ -15,7 +15,7 @@ export function CommandForm({ uid, command, connector, values, onSaved, submitLa
     setFeedback(null);
     try {
       const variables = await values(form);
-      const id = await executeOperation(uid, command, variables, connector);
+      const id = await executeOperation(uid, command, variables);
       setFeedback({ message: 'Guardado en NexaTech.' });
       onSaved?.(id);
     } catch (error) {

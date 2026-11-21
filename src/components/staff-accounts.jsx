@@ -1,14 +1,14 @@
 import { useCallback, useState } from 'react';
-import * as staff from '../dataconnect-generated/staff/esm/index.esm.js';
+import * as staff from '../lib/staff-api.js';
 import { useResource } from '../hooks/useResource.js';
 import { canonicalUuid, orderDate } from '../lib/commerce.js';
 import { labelFor, optionalText, textValue } from '../lib/operations.js';
-import { readStaff, staffDb } from '../lib/staff.js';
+import { readStaff } from '../lib/staff.js';
 import { CommandForm, Pager, RecordList } from './operations.jsx';
 import { Resource } from './ui.jsx';
 
 function CategoryForm({ uid, category, onSaved }) {
-  return <CommandForm uid={uid} connector={staffDb} command={staff.saveCategoryRef} onSaved={onSaved}
+  return <CommandForm uid={uid} command={staff.saveCategory} onSaved={onSaved}
     submitLabel={category ? 'Guardar categoría' : 'Crear categoría'} values={form => ({
       id: canonicalUuid(category?.id) ?? undefined, slug: textValue(form, 'slug'), name: textValue(form, 'name'),
       description: optionalText(form, 'description'), archived: form.has('archived'),
@@ -54,7 +54,16 @@ export function StaffCustomers({ uid }) {
       <RecordList items={items} render={customer => <li key={customer.uid}>
         <div><strong>{customer.displayName}</strong><p className="muted">{customer.uid}</p>
           <p>{customer.userRoles_on_user.map(role => labelFor(role.roleCode)).join(' · ')}</p></div>
-        <div><span>{labelFor(customer.status)}</span><p className="muted">Alta {orderDate(customer.createdAt)}</p></div>
+        <div><span>{labelFor(customer.status)}</span><p className="muted">Alta {orderDate(customer.createdAt)}</p>
+          {customer.uid !== uid && customer.status === 'ACTIVE' && <details>
+            <summary>Gestionar roles</summary>
+            <CommandForm uid={uid} command={staff.changeUserRole} submitLabel="Guardar rol" onSaved={customers.retry}
+              values={form => ({ uid: customer.uid, role: textValue(form, 'role'), enabled: form.get('action') === 'grant' })}>
+              <label>Rol<select name="role"><option value="SUPPORT">Soporte</option><option value="ADMIN">Administración</option></select></label>
+              <label>Acción<select name="action"><option value="grant">Conceder</option><option value="revoke">Retirar</option></select></label>
+            </CommandForm>
+          </details>}
+        </div>
       </li>} />
       <Pager offset={offset} count={items.length} onChange={setOffset} label="Páginas de clientes" />
     </>}</Resource>

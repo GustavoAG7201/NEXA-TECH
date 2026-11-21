@@ -6,6 +6,7 @@ import { BasketProvider } from './context/cartcontext.jsx';
 import { MainLayout } from './layouts/mainlayout.jsx';
 import { Cart } from './pages/cart.jsx';
 import { Checkout } from './pages/checkout.jsx';
+import { EmailAction } from './pages/email-action.jsx';
 import { Help, Policies } from './pages/help.jsx';
 import { Home } from './pages/home.jsx';
 import { AuthForm } from './pages/login.jsx';
@@ -38,6 +39,8 @@ export default function App() {
           <Route path="cuenta/soporte/:id?" element={<MySupport />} />
           <Route path="login" element={<AuthForm key="login" />} />
           <Route path="registro" element={<AuthForm key="register" register />} />
+          <Route path="restablecer-clave" element={<EmailAction key="reset" reset />} />
+          <Route path="verificar-correo" element={<EmailAction key="verify" />} />
           <Route path="perfil" element={<Profile />} />
           <Route path="ayuda" element={<Help />} />
           <Route path="politicas/:kind?" element={<Policies />} />

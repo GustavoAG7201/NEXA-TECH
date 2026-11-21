@@ -1,0 +1,9 @@
+.git
+.nexa
+.firebase
+.env*
+deploy/.env*
+node_modules
+dist
+*.log
+*.backup

@@ -1,0 +1,99 @@
+name: nexatech
+services:
+  db:
+    image: postgres:18-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nexa_owner
+      POSTGRES_PASSWORD: ${NEXA_OWNER_PASSWORD:?Configura NEXA_OWNER_PASSWORD}
+      POSTGRES_DB: postgres
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - pg_data:/var/lib/postgresql
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "nexa_owner", "-d", "postgres", "-q"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ORIGIN: https://${APP_DOMAIN:?Configura APP_DOMAIN}
+      API_HOST: 0.0.0.0
+      API_PORT: 8787
+      TRUST_PROXY: "1"
+      DATABASE_URL: ${DATABASE_URL:?Configura DATABASE_URL con el rol de aplicación}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_REQUIRE_TLS: ${SMTP_REQUIRE_TLS:-true}
+    networks:
+      - data
+      - web
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/api/health').then(r=>{if(!r.ok)process.exitCode=1}).catch(()=>{process.exitCode=1})"]
+      interval: 15s
+      timeout: 7s
+      retries: 5
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Configura APP_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - web
+
+  db-tools:
+    profiles: ["tools"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: db-tools
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NEXATECH_OWNER_URL: postgresql://nexa_owner:${NEXA_OWNER_PASSWORD:?Configura NEXA_OWNER_PASSWORD}@db:5432/nexatech
+      DATABASE_URL: ${DATABASE_URL:?Configura DATABASE_URL con el rol de aplicación}
+    volumes:
+      - type: bind
+        source: ${NEXA_HANDOFF_DIR:-../.nexa/private}
+        target: /handoff
+        bind:
+          create_host_path: false
+    networks:
+      - data
+
+networks:
+  data:
+    internal: true
+  web:
+volumes:
+  pg_data:
+  caddy_data:
+  caddy_config:

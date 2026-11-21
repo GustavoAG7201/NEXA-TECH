@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeading } from '../components/ui.jsx';
 import { useAuthSession } from '../context/auth-session.js';
-import { ensureCustomerProfile, identityError, loadMyProfile, saveProfile } from '../lib/account.js';
-import { auth, useFirebaseEmulators } from '../lib/firebase.js';
+import { identityError } from '../lib/account.js';
+import { login, register as registerUser, requestReset } from '../lib/session.js';
 
 export function AuthForm({ register = false }) {
   const { user, pending, error: sessionError } = useAuthSession();
@@ -25,11 +24,8 @@ export function AuthForm({ register = false }) {
     setError('');
     setNotice('');
     try {
-      await sendPasswordResetEmail(auth, email.value.trim()).catch(failure => {
-        if (failure.code !== 'auth/user-not-found') throw failure;
-      });
-      setNotice(useFirebaseEmulators ? 'Si la cuenta existe, el emulador genera un enlace de recuperación.'
-        : 'Si la cuenta existe, recibirás un enlace para restablecer la contraseña.');
+      await requestReset(email.value.trim());
+      setNotice('Si la cuenta existe, recibirás un enlace para restablecer la contraseña.');
     } catch (failure) {
       setError(identityError(failure));
     } finally {
@@ -51,15 +47,8 @@ export function AuthForm({ register = false }) {
     setNotice('');
     setBusy(true);
     try {
-      if (register) {
-        const { user: identity } = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(identity, { displayName: name });
-        await ensureCustomerProfile(identity.uid, name);
-        const saved = await loadMyProfile(identity.uid);
-        if (saved?.displayName !== name) await saveProfile(identity.uid, name, saved?.phone ?? '');
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-      }
+      if (register) await registerUser(email, password, name);
+      else await login(email, password);
       navigate(returnTo ?? (checkout ? '/checkout' : '/perfil'), { replace: true });
     } catch (failure) {
       setError(identityError(failure));
@@ -91,8 +80,8 @@ export function AuthForm({ register = false }) {
             {register && <label>Nombre completo<input name="name" autoComplete="name" maxLength="120" required /></label>}
             <label>Correo electrónico<input name="email" type="email" autoComplete="email" maxLength="254" required /></label>
             <label>Contraseña<input name="password" type="password" autoComplete={register ? 'new-password' : 'current-password'}
-              minLength={register ? 8 : undefined} required /></label>
-            {register && <p className="muted">Usa al menos ocho caracteres.</p>}
+              minLength={register ? 12 : undefined} maxLength={256} required /></label>
+            {register && <p className="muted">Usa al menos doce caracteres.</p>}
             <button className="button primary">{busy ? 'Procesando…' : register ? 'Crear cuenta' : 'Iniciar sesión'}</button>
             {!register && <button type="button" className="button secondary" onClick={resetPassword}>Restablecer contraseña</button>}
           </fieldset>

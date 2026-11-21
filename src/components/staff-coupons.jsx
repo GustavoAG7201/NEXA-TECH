@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { listCouponRedemptions, listStaffCoupons, saveCouponRef } from '../dataconnect-generated/staff/esm/index.esm.js';
+import { listCouponRedemptions, listStaffCoupons, saveCoupon } from '../lib/staff-api.js';
 import { useResource } from '../hooks/useResource.js';
 import { canonicalUuid, exactMoney, orderDate, orderStatus } from '../lib/commerce.js';
 import { formNumber, OperationInputError, optionalNumber, parseDecimal, textValue } from '../lib/operations.js';
-import { readStaff, staffDb } from '../lib/staff.js';
+import { readStaff } from '../lib/staff.js';
 import { CommandForm, Pager, RecordList } from './operations.jsx';
 import { PurchaseResource } from './purchase.jsx';
 import { State } from './ui.jsx';
@@ -42,7 +42,7 @@ export function StaffCoupons({ uid }) {
 function CouponForm({ uid, coupon, onSaved }) {
   const [kind, setKind] = useState(coupon?.kind ?? 'PERCENTAGE');
   const navigate = useNavigate();
-  return <CommandForm uid={uid} connector={staffDb} command={saveCouponRef} className="surface coupon-editor"
+  return <CommandForm uid={uid} command={saveCoupon} className="surface coupon-editor"
     title={coupon ? 'Editar cupón' : 'Nuevo cupón'} submitLabel="Guardar cupón"
     onSaved={id => coupon ? onSaved() : navigate(route + '/' + canonicalUuid(id), { replace: true })}
     values={form => {

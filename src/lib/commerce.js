@@ -1,8 +1,9 @@
-import * as account from '../dataconnect-generated/account/esm/index.esm.js';
-import { accountDb, auth, serverOnly } from './firebase.js';
+import * as account from './account-api.js';
+import { activeUid } from './session.js';
 
 const messages = {
   SESSION_CHANGED: 'Tu sesión expiró o cambió. Vuelve a iniciar sesión.',
+  IDEMPOTENCY_CONFLICT: 'La clave de esta operación ya se usó con otros datos. Vuelve a cargar la página.',
   STOCK_UNAVAILABLE: 'Inventario insuficiente. Revisa las cantidades en tu carrito.',
   VARIANT_UNAVAILABLE: 'Un producto está agotado o dejó de estar disponible. Revisa tu carrito.',
   PRODUCT_UNAVAILABLE: 'El producto dejó de estar disponible.',
@@ -24,6 +25,7 @@ const messages = {
   PAYMENT_DECLINED: 'El pago simulado fue rechazado. Tu carrito sigue disponible para reintentar.',
   PROFILE_DISABLED: 'Tu perfil comercial no está activo.',
   FORBIDDEN: 'Tu cuenta no tiene permiso para esta operación.',
+  ROLE_CHANGE_NOT_ALLOWED: 'El cambio de rol solicitado no está permitido.',
   CONTACT_EMAIL_REQUIRED: 'La cuenta necesita un correo válido para confirmar.',
   INVALID_TRANSITION: 'El estado actual no admite esta acción. Actualiza la consulta.',
   ORDER_UNAVAILABLE: 'El pedido no está disponible para esta cuenta.',
@@ -53,39 +55,22 @@ export class CommerceError extends Error {
 
 export function commerceMessage(error) {
   if (error instanceof CommerceError) return error.message;
-  if (/unauthenticated|user-token-expired|invalid-user-token/i.test(error?.code ?? '')) return messages.SESSION_CHANGED;
+  if (Object.hasOwn(messages, error?.code)) return messages[error.code];
   return 'No se pudo conectar con el servicio. Revisa tu conexión y vuelve a intentarlo.';
 }
 
 export function checkSession(uid) {
-  if (!uid || auth.currentUser?.uid !== uid) throw new CommerceError('SESSION_CHANGED');
+  if (!uid || activeUid() !== uid) throw new CommerceError('SESSION_CHANGED');
 }
 
 export async function readOwned(uid, query, variables) {
   checkSession(uid);
-  const { data } = variables === undefined
-    ? await query(accountDb, serverOnly) : await query(accountDb, variables, serverOnly);
+  const data = await query(variables, uid);
   checkSession(uid);
   return data;
 }
 
-export async function runCommand(uid, mutation, variables, connector = accountDb) {
-  const { key } = variables;
-  const lookup = async () => (await readOwned(uid, account.getMyCommandResult, { key })).commerceCommands[0];
-  let result = await lookup();
-  if (result) return result;
-  checkSession(uid);
-  try {
-    await mutation(connector, variables);
-  } catch (error) {
-    result = await lookup();
-    if (result) return result;
-    throw error;
-  }
-  result = await lookup();
-  if (!result) throw new Error('Resultado del comando aún no disponible.');
-  return result;
-}
+export const runCommand = readOwned;
 
 export function resultId(result, expected = 'OK') {
   if (result.status !== 'SUCCEEDED' || result.resultCode !== expected) throw new CommerceError(result.resultCode);

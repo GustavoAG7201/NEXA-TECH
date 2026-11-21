@@ -2,19 +2,18 @@ import { cwd } from 'node:process'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 
-// https://vite.dev/config/
-export default defineConfig(({ command, mode, isPreview }) => {
-  if (command === 'build') {
-    const env = loadEnv(mode, cwd(), 'VITE_NEXATECH_')
-    if (!/^AIza[\w-]{35}$/.test(env.VITE_NEXATECH_API_KEY ?? '') ||
-        !/^1:\d+:web:[a-f0-9]+$/.test(env.VITE_NEXATECH_APP_ID ?? '')) {
-      throw new Error('Configura VITE_NEXATECH_API_KEY y VITE_NEXATECH_APP_ID con el SDK web de nexatech-58ce3.')
-    }
-  }
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, cwd(), ['APP_ORIGIN', 'API_PORT'])
+  const origin = new URL(env.APP_ORIGIN ?? 'http://127.0.0.1:5173')
   return {
     plugins: [react()],
-    define: {
-      __NEXATECH_USE_EMULATORS__: command === 'serve' && !isPreview,
+    server: {
+      host: origin.hostname,
+      port: Number(origin.port || 5173),
+      strictPort: true,
+      watch: { ignored: ['**/.nexa/**'] },
+      fs: { deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/.nexa/**'] },
+      proxy: { '/api': 'http://127.0.0.1:' + (env.API_PORT ?? 8787) },
     },
   }
 })

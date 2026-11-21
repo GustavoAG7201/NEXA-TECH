@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import * as staff from '../dataconnect-generated/staff/esm/index.esm.js';
+import * as staff from '../lib/staff-api.js';
 import { useResource } from '../hooks/useResource.js';
 import { loadCategories } from '../lib/catalog.js';
 import { canonicalUuid, exactMoney, orderDate } from '../lib/commerce.js';
 import { formNumber, labelFor, OperationInputError, optionalNumber, optionalText, parseDecimal, textValue } from '../lib/operations.js';
-import { readStaff, staffDb } from '../lib/staff.js';
+import { readStaff } from '../lib/staff.js';
 import { CommandForm, Pager, RecordList } from './operations.jsx';
 import { PurchaseResource } from './purchase.jsx';
 import { State } from './ui.jsx';
@@ -72,7 +72,7 @@ function ProductForm({ uid, product, reload, saved }) {
   const categories = useResource(loadCategories);
   const navigate = useNavigate();
   return <PurchaseResource resource={categories} label="Consultando categorías…">{items =>
-    <CommandForm uid={uid} connector={staffDb} command={staff.saveProductRef} className="surface product-editor"
+    <CommandForm uid={uid} command={staff.saveProduct} className="surface product-editor"
       title={product ? 'Editar ficha de producto' : 'Nueva ficha de producto'}
       submitLabel={product ? 'Guardar producto' : 'Crear borrador'} onSaved={id => {
         if (product) reload('Producto guardado.');
@@ -135,7 +135,7 @@ export function StaffProduct({ uid, id, created = false }) {
           <Pager offset={offset} count={value.productVariants_on_product.length} onChange={setOffset} label="Páginas de variantes" />
         </section>
       </div>
-      {value.status !== 'ARCHIVED' && <CommandForm uid={uid} connector={staffDb} command={staff.archiveProductRef}
+      {value.status !== 'ARCHIVED' && <CommandForm uid={uid} command={staff.archiveProduct}
         className="surface" title="Archivar ficha" submitLabel="Archivar producto" values={() => ({ id })}
         onSaved={() => reload('Producto archivado.')} />}
     </> : <State title="Producto no disponible" />}</PurchaseResource>}
@@ -151,7 +151,7 @@ function VariantForm({ uid, productId, variant, reload }) {
     ['width', 'Ancho (mm)', variant?.widthMm], ['height', 'Alto (mm)', variant?.heightMm],
   ];
   return <PurchaseResource resource={taxes} label="Consultando tasas…">{items =>
-    <CommandForm uid={uid} connector={staffDb} command={staff.saveVariantRef} className="surface variant-editor"
+    <CommandForm uid={uid} command={staff.saveVariant} className="surface variant-editor"
       title={variant ? 'Editar variante' : 'Nueva variante'} submitLabel="Guardar variante" onSaved={id => {
         if (variant) reload();
         else navigate(variantRoute + '/' + canonicalUuid(id), { replace: true });
@@ -277,7 +277,7 @@ export function InventoryDetail({ uid, id }) {
         <p>Existencias <strong>{value.stockOnHand} uds.</strong> · Umbral {value.lowStockThreshold}</p>
         <Link className="text-link" to={variantRoute + '/' + id}>Editar variante</Link>
       </section>
-      <CommandForm uid={uid} connector={staffDb} command={staff.adjustInventoryRef} className="surface inventory-adjustment"
+      <CommandForm uid={uid} command={staff.adjustInventory} className="surface inventory-adjustment"
         title="Registrar ajuste" submitLabel="Aplicar ajuste"
         values={form => {
           const delta = Number(form.get('delta'));

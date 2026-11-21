@@ -14,6 +14,8 @@ dist-ssr
 .env
 .env.*
 !.env.example
+.nexa/
+*.backup
 
 # SQL Connect emulator output and generated SDK guides
 dataconnect/.dataconnect/schema/main/

@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getStaffOrder, listStaffOrders, recordShipmentEventRef } from '../dataconnect-generated/staff/esm/index.esm.js';
+import { getStaffOrder, listStaffOrders, recordShipmentEvent } from '../lib/staff-api.js';
 import { useResource } from '../hooks/useResource.js';
 import { canonicalUuid, exactMoney, orderDate, orderStatus, paymentStatus } from '../lib/commerce.js';
 import { optionalText, orderStates, shipmentLabel, textValue } from '../lib/operations.js';
-import { readStaff, staffDb } from '../lib/staff.js';
+import { readStaff } from '../lib/staff.js';
 import { CommandForm } from './operations.jsx';
 import { OrderList } from './orders.jsx';
 import { AddressText, PurchaseResource } from './purchase.jsx';
@@ -47,7 +47,7 @@ function ShipmentForm({ uid, order, reload }) {
   if (!actions.length || ['CANCELLED', 'REFUNDED'].includes(order.status)) return null;
   const dispatch = selected === 'SHIPPED';
   const choice = actions.find(([code]) => code === selected);
-  return <CommandForm uid={uid} connector={staffDb} command={recordShipmentEventRef} className="surface"
+  return <CommandForm uid={uid} command={recordShipmentEvent} className="surface"
     title="Operar envío" submitLabel={choice[1]} onSaved={reload}
     values={form => ({
       orderId: canonicalUuid(order.id), event: selected, detail: optionalText(form, 'detail'),

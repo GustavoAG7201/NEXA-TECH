@@ -1,6 +1,10 @@
 # Estado actual de NexaTech
 
-Corte del 21 de noviembre de 2026. La integración final conserva PostgreSQL y SQL Connect en `nexatech-58ce3` con Firebase Spark. El [procedimiento de G1](preparacion-publicacion-g1.md) conserva el diagnóstico histórico y los controles de migración. El destino y el estado remoto vigentes son los de este documento.
+La versión autónoma usa la API Node.js en `server/` y PostgreSQL 18 persistente. Para iniciar el proyecto, restaurar la base o preparar un servidor, sigue la [guía de instalación autónoma](INSTALACION_SERVIDOR_EXTERNO.md).
+
+## Registro histórico de la integración G1
+
+Corte del 21 de noviembre de 2026. La fase G1 evaluó PostgreSQL y SQL Connect en `nexatech-58ce3` con Firebase Spark. El [procedimiento de G1](preparacion-publicacion-g1.md) conserva el diagnóstico histórico y los controles de esa fase.
 
 ## Integración final
 

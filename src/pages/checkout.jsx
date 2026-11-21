@@ -6,15 +6,15 @@ import { AddressText, Amounts, PurchaseResource } from '../components/purchase.j
 import { CatalogLink, PageHeading, ProductImage, State } from '../components/ui.jsx';
 import { useAuthSession } from '../context/auth-session.js';
 import { useBasket } from '../context/basket.js';
-import { confirmCheckout, quoteCheckout } from '../dataconnect-generated/account/esm/index.esm.js';
+import { confirmCheckout, quoteCheckout } from '../lib/account-api.js';
 import { useResource } from '../hooks/useResource.js';
 import { loadPolicies, money } from '../lib/catalog.js';
 import { canonicalUuid, checkSession, CommerceError, commerceMessage, exactMoney, loadAddresses, loadQuote, orderDate, resultId, runCommand } from '../lib/commerce.js';
-import { firebaseProjectId } from '../lib/firebase.js';
+import { storeId } from '../lib/api.js';
 import { CartContents, CartFeedback, CartSubtotal } from './cart.jsx';
 
 const expires = quote => Date.parse(quote.expiresAt) <= Date.now();
-const attemptKey = uid => 'nexa-checkout:' + firebaseProjectId + ':' + uid;
+const attemptKey = uid => 'nexa-checkout:' + storeId + ':' + uid;
 
 function readAttempt(uid) {
   try { return JSON.parse(localStorage.getItem(attemptKey(uid))); } catch { return null; }

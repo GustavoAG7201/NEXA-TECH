@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { mergeCart, removeCartItem, setCartItem, setFavorite } from '../dataconnect-generated/account/esm/index.esm.js';
+import { mergeCart, removeCartItem, setCartItem, setFavorite } from '../lib/account-api.js';
 import { useLocalStorage } from '../hooks/userlocalstorage.js';
 import { useResource } from '../hooks/useResource.js';
-import { ensureCustomerProfile } from '../lib/account.js';
 import { legacySku, loadProducts, productSlug } from '../lib/catalog.js';
 import { checkSession, CommerceError, loadCart, loadFavorites, resultId, runCommand } from '../lib/commerce.js';
-import { auth, firebaseProjectId } from '../lib/firebase.js';
+import { storeId } from '../lib/api.js';
+import { activeUid } from '../lib/session.js';
 import { useAuthSession } from './auth-session.js';
 import { Basket } from './basket.js';
 
@@ -31,7 +31,7 @@ function storedCart(value) {
 function readDraft() {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
-    const pending = saved?.pending?.project === firebaseProjectId ? saved.pending : null;
+    const pending = saved?.pending?.project === storeId ? saved.pending : null;
     return { lines: storedCart(saved?.lines ?? saved), pending };
   } catch {
     return emptyDraft;
@@ -62,7 +62,7 @@ async function mergeDraft(uid, saveDraft) {
         return { variantId, quantity: line.quantity };
       });
       checkSession(uid);
-      pending = { project: firebaseProjectId, uid, key: crypto.randomUUID(), items };
+      pending = { project: storeId, uid, key: crypto.randomUUID(), items };
       saveDraft({ ...draft, pending });
     }
     const result = await runCommand(uid, mergeCart, { key: pending.key, items: pending.items });
@@ -99,7 +99,6 @@ function BasketSession({ children, user, sessionPending, draft, saveDraft, commo
   }, [uid]);
 
   const synchronize = useCallback(async () => {
-    await ensureCustomerProfile(uid, user.displayName || user.email);
     let mergeFailure = null;
     try {
       await mergeDraft(uid, saveDraft);
@@ -108,7 +107,7 @@ function BasketSession({ children, user, sessionPending, draft, saveDraft, commo
     }
     setMergeError(mergeFailure);
     await refresh();
-  }, [refresh, saveDraft, uid, user]);
+  }, [refresh, saveDraft, uid]);
 
   const perform = useCallback(async task => {
     if (running.current) return false;
@@ -141,7 +140,7 @@ function BasketSession({ children, user, sessionPending, draft, saveDraft, commo
   async function editDraft(id, update) {
     await withDraftLock(() => {
       const current = readDraft();
-      if (current.pending || (auth.currentUser?.uid ?? undefined) !== uid) return;
+      if (current.pending || (activeUid() ?? undefined) !== uid) return;
       const previous = current.lines.find(line => line.id === id);
       const next = update(previous);
       const items = current.lines.filter(line => line.id !== id);
@@ -201,7 +200,6 @@ function BasketSession({ children, user, sessionPending, draft, saveDraft, commo
     setFavoriteBusy(true);
     setFavoriteError(null);
     try {
-      await ensureCustomerProfile(uid, user.displayName || user.email);
       resultId(await runCommand(uid, setFavorite, { key: crypto.randomUUID(), productId: id, enabled: !saved }));
       favoriteList.retry();
     } catch (error) {

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import * as account from '../dataconnect-generated/account/esm/index.esm.js';
+import * as account from '../lib/account-api.js';
 import { useResource } from '../hooks/useResource.js';
 import { canonicalUuid, readOwned } from '../lib/commerce.js';
 import { labelFor, OperationInputError, textValue } from '../lib/operations.js';
@@ -18,7 +18,7 @@ function ReturnForm({ uid, order, kinds }) {
   const [kind, setKind] = useState(kinds[0]);
   const navigate = useNavigate();
   const lines = order.orderItems_on_order.map(item => ({ ...item, id: canonicalUuid(item.id) }));
-  return <CommandForm uid={uid} command={account.createReturnRequestRef} title="Nueva solicitud"
+  return <CommandForm uid={uid} command={account.createReturnRequest} title="Nueva solicitud"
     className="return-request-form" submitLabel="Enviar solicitud"
     onSaved={id => navigate(route + '/' + canonicalUuid(id))}
     values={form => {
@@ -91,7 +91,7 @@ function CustomerReturnDetail({ uid, id }) {
       <section className="surface form-stack">
         <EvidenceList items={value.returnEvidences_on_request} load={loadEvidence} />
         {!closed.includes(value.status) && value.returnEvidences_on_request.length < 5 &&
-          <CommandForm uid={uid} command={account.uploadReturnEvidenceRef} title="Agregar evidencia" submitLabel="Adjuntar evidencia"
+          <CommandForm uid={uid} command={account.uploadReturnEvidence} title="Agregar evidencia" submitLabel="Adjuntar evidencia"
             values={async form => ({ id, ...await readEvidenceFile(form) })}
             onSaved={() => { setSaved(true); resource.retry(); }}>
             <label>Archivo PNG o JPEG (máx. 256 KiB)<input type="file" name="evidence" accept="image/png,image/jpeg" required /></label>

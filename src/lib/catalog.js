@@ -1,7 +1,6 @@
 import {
   getProduct, getPublishedPolicies, listCatalog, listCategories,
-} from '../dataconnect-generated/storefront/esm/index.esm.js';
-import { serverOnly, storefrontDb } from './firebase.js';
+} from './storefront-api.js';
 
 const legacy = {
   1: ['novabook-air-14', 'NX-NBA14-TI'],
@@ -28,7 +27,7 @@ const formatMXN = new Intl.NumberFormat('es-MX', {
 export const money = cents => formatMXN.format(Number(cents) / 100);
 
 export async function loadCategories() {
-  const { data } = await listCategories(storefrontDb, serverOnly);
+  const data = await listCategories();
   return data.categories.sort((a, b) => {
     const rank = slug => primaryCategories.includes(slug) ? primaryCategories.indexOf(slug) : primaryCategories.length;
     return rank(a.slug) - rank(b.slug) || a.name.localeCompare(b.name, 'es-MX');
@@ -36,7 +35,7 @@ export async function loadCategories() {
 }
 
 export async function loadProduct(slug) {
-  const { data } = await getProduct(storefrontDb, { slug: productSlug(slug) }, serverOnly);
+  const data = await getProduct({ slug: productSlug(slug) });
   const [product] = data.products;
   if (!product) return null;
   return {
@@ -57,10 +56,10 @@ export function preferredVariant(product) {
 
 export async function loadCatalog(filters) {
   const { categoryId, minimum, maximum, available, search, sort } = filters;
-  const pageSize = 30; // ListCatalog fixes this limit in the connector.
+  const pageSize = 30; // Tamaño de página de ListCatalog en la API.
   const rows = [];
   for (let offset = 0; ; offset += pageSize) {
-    const { data } = await listCatalog(storefrontDb, { offset, categoryId, minimum, maximum, available }, serverOnly);
+    const data = await listCatalog({ offset, categoryId, minimum, maximum, available });
     rows.push(...data.productVariants);
     if (data.productVariants.length < pageSize) break;
   }
@@ -85,7 +84,7 @@ export async function loadCatalog(filters) {
 }
 
 export async function loadPolicies() {
-  const { data } = await getPublishedPolicies(storefrontDb, serverOnly);
+  const data = await getPublishedPolicies();
   const current = new Map();
   for (const policy of data.legalDocuments) {
     if (!current.has(policy.kind) || policy.version > current.get(policy.kind).version) current.set(policy.kind, policy);

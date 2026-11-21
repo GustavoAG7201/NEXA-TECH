@@ -1,6 +1,5 @@
-import { executeMutation } from 'firebase/data-connect';
 import { checkSession, orderStatus, resultId, runCommand } from './commerce.js';
-import { firebaseProjectId } from './firebase.js';
+import { storeId } from './api.js';
 
 export const pageSize = 30;
 export const messagePageSize = 100;
@@ -54,9 +53,9 @@ export async function collectPages(load, size = pageSize) {
   }
 }
 
-export async function executeOperation(uid, mutationRef, variables, connector) {
+export async function executeOperation(uid, command, variables) {
   checkSession(uid);
-  const payload = JSON.stringify([firebaseProjectId, uid, mutationRef.operationName, variables]);
+  const payload = JSON.stringify([storeId, uid, command.operationName, variables]);
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload));
   const name = 'nexatech:operacion:' + Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
   const reserve = () => {
@@ -66,8 +65,7 @@ export async function executeOperation(uid, mutationRef, variables, connector) {
     return key;
   };
   const key = navigator.locks ? await navigator.locks.request(name, reserve) : reserve();
-  const submit = (db, input) => executeMutation(mutationRef(db, input));
-  const result = await runCommand(uid, submit, { ...variables, key }, connector);
+  const result = await runCommand(uid, command, { ...variables, key });
   checkSession(uid);
   if (localStorage.getItem(name) === key) localStorage.removeItem(name);
   return resultId(result);

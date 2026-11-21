@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import * as staff from '../dataconnect-generated/staff/esm/index.esm.js';
+import * as staff from '../lib/staff-api.js';
 import { useResource } from '../hooks/useResource.js';
 import { canonicalUuid, orderDate, orderStatus } from '../lib/commerce.js';
 import { collectPages, labelFor, messagePageSize, OperationInputError, optionalText, textValue } from '../lib/operations.js';
-import { readStaff, staffDb } from '../lib/staff.js';
+import { readStaff } from '../lib/staff.js';
 import { EvidenceList, RefundDetails, ReturnDetails, ReturnList, TicketMessages } from './cases.jsx';
 import { CommandForm, Pager, RecordList } from './operations.jsx';
 import { PurchaseResource } from './purchase.jsx';
@@ -32,7 +32,7 @@ export function StaffQueue({ uid, admin, compact = false }) {
             <div><strong>{labelFor(item.kind)}</strong><p>{labelFor(item.status)}</p>
               <p className="muted"><time dateTime={item.createdAt}>{orderDate(item.createdAt)}</time></p></div>
             {admin || item.assigned ? <Link className="text-link" to={to}>Abrir {ticket ? 'ticket' : 'expediente'}</Link>
-              : <CommandForm uid={uid} connector={staffDb} command={ticket ? staff.assignTicketRef : staff.assignCaseRef}
+              : <CommandForm uid={uid} command={ticket ? staff.assignTicket : staff.assignCase}
                 submitLabel={ticket ? 'Tomar ticket' : 'Tomar expediente'} values={() => ({ id })} onSaved={() => navigate(to)} />}
           </li>;
         }} />
@@ -47,7 +47,7 @@ function AssignOperator({ uid, id, assigned, command, onSaved }) {
   const read = useCallback(() => collectPages(async offset => (await readStaff(uid, staff.listStaffOperators, { offset })).staffOperators), [uid]);
   const resource = useResource(read);
   return <PurchaseResource resource={resource} label="Consultando personal…">{operators =>
-    <CommandForm uid={uid} connector={staffDb} command={command} title="Asignación" submitLabel="Asignar expediente"
+    <CommandForm uid={uid} command={command} title="Asignación" submitLabel="Asignar expediente"
       values={form => ({ id, assignedTo: textValue(form, 'assignedTo') })} onSaved={onSaved}>
       <label>Responsable<select name="assignedTo" defaultValue={operators.some(item => item.uid === assigned) ? assigned : uid} required>
         {operators.map(item => <option key={item.uid} value={item.uid}>
@@ -86,7 +86,7 @@ function ReviewCase({ uid, id, request, onSaved }) {
   const states = transitions[request.status] ?? [];
   const [next, setNext] = useState(states[0]);
   if (!states.length) return null;
-  return <CommandForm uid={uid} connector={staffDb} command={staff.reviewReturnRequestRef}
+  return <CommandForm uid={uid} command={staff.reviewReturnRequest}
     title="Revisar solicitud" submitLabel="Actualizar expediente" className="review-case" onSaved={onSaved}
     values={form => ({ id, state: next, detail: optionalText(form, 'detail'), resolution: optionalText(form, 'resolution') })}>
     <label>Nuevo estado<select name="state" value={next} onChange={event => setNext(event.target.value)}>
@@ -102,7 +102,7 @@ function ReviewCase({ uid, id, request, onSaved }) {
 
 function InspectCase({ uid, id, request, admin, onSaved }) {
   const items = request.returnItems_on_request.map(item => ({ ...item, id: canonicalUuid(item.id) }));
-  return <CommandForm uid={uid} connector={staffDb} command={staff.recordInspectionRef} title="Inspección de mercancía"
+  return <CommandForm uid={uid} command={staff.recordInspection} title="Inspección de mercancía"
     submitLabel="Registrar inspección" className="inspect-case" onSaved={onSaved} values={form => ({
       id, detail: optionalText(form, 'detail'),
       items: items.map(item => {
@@ -136,8 +136,8 @@ function ResolveCase({ uid, id, request, onSaved }) {
   const cancellation = request.kind === 'CANCELLATION';
   const replacement = ['WARRANTY', 'EXCHANGE'].includes(request.kind);
   const [action, setAction] = useState('refund');
-  return <CommandForm uid={uid} connector={staffDb}
-    command={action === 'replacement' ? staff.resolveReplacementRef : staff.approveRefundRef}
+  return <CommandForm uid={uid}
+    command={action === 'replacement' ? staff.resolveReplacement : staff.approveRefund}
     title={cancellation ? 'Ejecutar cancelación' : 'Resolver expediente'} className="resolve-case" onSaved={onSaved}
     submitLabel={cancellation ? 'Cancelar pedido y simular reembolso' : action === 'replacement' ? 'Registrar reposición' : 'Ejecutar reembolso simulado'}
     values={form => {
@@ -184,7 +184,7 @@ export function StaffReturnDetail({ uid, id, admin }) {
         <h2>Gestión del expediente</h2>
         <EvidenceList items={request.returnEvidences_on_request} load={evidence} />
         {!closed.includes(request.status) && <>
-          {admin && <AssignOperator uid={uid} id={id} assigned={request.assignedToUid} command={staff.assignCaseRef} onSaved={reload} />}
+          {admin && <AssignOperator uid={uid} id={id} assigned={request.assignedToUid} command={staff.assignCase} onSaved={reload} />}
           <ReviewCase uid={uid} id={id} request={request} onSaved={reload} />
           {['AWAITING_ITEM', 'RECEIVED'].includes(request.status) &&
             <InspectCase uid={uid} id={id} request={request} admin={admin} onSaved={reload} />}
@@ -216,7 +216,7 @@ export function StaffTickets({ uid }) {
 
 function AnswerTicket({ uid, id, status, reload }) {
   const [action, setAction] = useState('reply');
-  return <CommandForm uid={uid} connector={staffDb} command={staff.replyToCustomerRef} title="Seguimiento del ticket"
+  return <CommandForm uid={uid} command={staff.replyToCustomer} title="Seguimiento del ticket"
     submitLabel={action === 'close' ? 'Responder y cerrar' : action === 'note' ? 'Guardar nota' : 'Enviar al cliente'}
     className="staff-reply" onSaved={reload}
     values={form => ({ id, body: textValue(form, 'body'), internal: action === 'note', close: action === 'close' })}>
@@ -251,7 +251,7 @@ export function StaffTicketDetail({ uid, id, admin }) {
       </article>
       <section className="surface form-stack case-actions">
         <h2>Atención al cliente</h2>
-        {admin && <AssignOperator uid={uid} id={id} assigned={ticket.assignedToUid} command={staff.assignTicketRef} onSaved={reload} />}
+        {admin && <AssignOperator uid={uid} id={id} assigned={ticket.assignedToUid} command={staff.assignTicket} onSaved={reload} />}
         <AnswerTicket uid={uid} id={id} status={ticket.status} reload={reload} />
       </section>
     </div> : <State title="Ticket no disponible" />}</PurchaseResource>

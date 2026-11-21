@@ -5,7 +5,12 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'src/dataconnect-generated']),
+  globalIgnores(['dist', '.nexa', 'src/dataconnect-generated']),
+  {
+    files: ['server/**/*.mjs', 'scripts/{admin,database,dev,local-db}.mjs'],
+    extends: [js.configs.recommended],
+    languageOptions: { globals: globals.node },
+  },
   {
     files: ['**/*.{js,jsx}'],
     extends: [

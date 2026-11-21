@@ -1,45 +1,30 @@
-import { ensureProfile, getMyCommandResult, getMyProfile, updateMyProfile } from '../dataconnect-generated/account/esm/index.esm.js';
-import { accountDb, auth, serverOnly } from './firebase.js';
+import { getMyProfile, updateMyProfile } from './account-api.js';
+import { CommerceError, commerceMessage, readOwned, resultId, runCommand } from './commerce.js';
 
 export async function loadMyProfile(uid) {
-  if (auth.currentUser?.uid !== uid) return null;
-  const { data } = await getMyProfile(accountDb, serverOnly);
-  return data.appUsers.find(profile => profile.uid === uid) ?? null;
-}
-
-export async function ensureCustomerProfile(uid, displayName) {
-  if (auth.currentUser?.uid !== uid) throw new Error('La sesión cambió.');
-  if (await loadMyProfile(uid)) return;
-  if (auth.currentUser?.uid !== uid) throw new Error('La sesión cambió.');
-  try {
-    await ensureProfile(accountDb, { displayName });
-  } catch (error) {
-    // Another tab can create this profile between the read and the insert.
-    if (!await loadMyProfile(uid)) throw error;
-  }
+  const { appUsers } = await readOwned(uid, getMyProfile);
+  return appUsers[0] ?? null;
 }
 
 export async function saveProfile(uid, name, phone) {
-  if (auth.currentUser?.uid !== uid) throw new Error('La sesión cambió.');
-  const key = crypto.randomUUID();
-  await updateMyProfile(accountDb, { key, name, phone });
-  const { data } = await getMyCommandResult(accountDb, { key }, serverOnly);
-  const result = data.commerceCommands[0];
-  if (result?.status !== 'SUCCEEDED' || result?.resultCode !== 'OK') {
-    throw new Error('PostgreSQL no pudo guardar el perfil.');
-  }
+  resultId(await runCommand(uid, updateMyProfile, { key: crypto.randomUUID(), name, phone }));
 }
 
+const messages = {
+  EMAIL_IN_USE: 'Este correo ya tiene una cuenta. Puedes iniciar sesión.',
+  INVALID_CREDENTIALS: 'Revisa tu correo y tu contraseña.',
+  INVALID_EMAIL: 'Escribe un correo válido.',
+  INVALID_NAME: 'Escribe tu nombre.',
+  WEAK_PASSWORD: 'Elige una contraseña de al menos doce caracteres y hasta 256 bytes.',
+  RATE_LIMIT: 'Espera un momento antes de intentarlo de nuevo.',
+  EMAIL_UNAVAILABLE: 'El servicio de correo requiere configuración. Contacta con la administración.',
+  EMAIL_DELIVERY_ERROR: 'El servidor de correo no aceptó el envío. Inténtalo más tarde.',
+  EMAIL_VERIFIED: 'El correo de esta cuenta ya está verificado.',
+  INVALID_TOKEN: 'El enlace caducó o ya se utilizó. Solicita uno nuevo.',
+};
+
 export function identityError(error) {
-  const messages = {
-    'auth/email-already-in-use': 'Este correo ya tiene una cuenta. Puedes iniciar sesión.',
-    'auth/invalid-credential': 'Revisa tu correo y tu contraseña.',
-    'auth/wrong-password': 'Revisa tu correo y tu contraseña.',
-    'auth/user-not-found': 'Revisa tu correo y tu contraseña.',
-    'auth/invalid-email': 'Escribe un correo válido.',
-    'auth/weak-password': 'Elige una contraseña de al menos ocho caracteres.',
-    'auth/too-many-requests': 'Espera un momento antes de intentarlo de nuevo.',
-    'auth/network-request-failed': 'No se pudo conectar con Firebase Authentication. Revisa tu conexión y vuelve a intentarlo.',
-  };
-  return messages[error.code] ?? 'No se pudo completar la operación. Vuelve a intentarlo.';
+  if (Object.hasOwn(messages, error?.code)) return messages[error.code];
+  if (error instanceof CommerceError || error?.code === 'SESSION_CHANGED') return commerceMessage(error);
+  return 'No se pudo completar la operación. Vuelve a intentarlo.';
 }

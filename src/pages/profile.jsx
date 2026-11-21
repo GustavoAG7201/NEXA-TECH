@@ -1,12 +1,11 @@
 import { useCallback, useState } from 'react';
-import { sendEmailVerification, signOut } from 'firebase/auth';
 import { LayoutDashboard, LogOut, MailCheck, UserRound } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { PageHeading, Resource } from '../components/ui.jsx';
 import { useAuthSession } from '../context/auth-session.js';
 import { useResource } from '../hooks/useResource.js';
-import { ensureCustomerProfile, identityError, loadMyProfile, saveProfile } from '../lib/account.js';
-import { auth, useFirebaseEmulators } from '../lib/firebase.js';
+import { identityError, loadMyProfile, saveProfile } from '../lib/account.js';
+import { logout, refreshSession, requestVerification } from '../lib/session.js';
 
 const roleNames = { CUSTOMER: 'Cliente', ADMIN: 'Administración', SUPPORT: 'Soporte' };
 
@@ -24,8 +23,7 @@ function ProfileForm({ user, profile, reload }) {
     setBusy(true);
     setFeedback(null);
     try {
-      if (profile) await saveProfile(user.uid, name, form.get('phone').trim());
-      else await ensureCustomerProfile(user.uid, name);
+      await saveProfile(user.uid, name, form.get('phone').trim());
       reload();
     } catch (failure) {
       setFeedback({ error: true, text: identityError(failure) });
@@ -34,21 +32,20 @@ function ProfileForm({ user, profile, reload }) {
     }
   }
   return <form className="surface form-stack" onSubmit={submit}>
-    <h2>{profile ? 'Datos de perfil' : 'Completa tu perfil'}</h2>
-    {profile && <p role="status" className="muted">Perfil asociado a tu cuenta en PostgreSQL.</p>}
+    <h2>Datos de perfil</h2>
+    <p role="status" className="muted">Perfil asociado a tu cuenta en PostgreSQL.</p>
     <fieldset disabled={busy}>
       <label>Nombre completo<input name="name" autoComplete="name" defaultValue={profile?.displayName ?? user.displayName ?? ''}
         maxLength="120" required /></label>
-      {profile && <label>Teléfono de prueba (opcional)<input name="phone" type="tel" autoComplete="tel" defaultValue={profile.phone ?? ''}
-        maxLength="25" /></label>}
-      <button className="button primary">{busy ? 'Guardando…' : profile ? 'Guardar perfil' : 'Crear perfil'}</button>
+      <label>Teléfono de prueba (opcional)<input name="phone" type="tel" autoComplete="tel" defaultValue={profile?.phone ?? ''}
+        maxLength="25" /></label>
+      <button className="button primary">{busy ? 'Guardando…' : 'Guardar perfil'}</button>
     </fieldset>
     {feedback && <p role="alert" className="feedback error">{feedback.text}</p>}
   </form>;
 }
 
 function SessionPanel({ user, roles }) {
-  const [verified, setVerified] = useState(user.emailVerified);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
   async function act(task) {
@@ -72,23 +69,20 @@ function SessionPanel({ user, roles }) {
     <Link className="button secondary" to="/cuenta/solicitudes">Mis solicitudes</Link>
     <Link className="button secondary" to="/cuenta/soporte">Mis tickets de soporte</Link>
     {roles.length > 0 && <p className="muted">{roles.map(role => roleNames[role] ?? role).join(' · ')}</p>}
-    {canUseStaff && (verified ? <Link className="button secondary" to="/administracion">
+    {canUseStaff && (user.emailVerified ? <Link className="button secondary" to="/administracion">
       <LayoutDashboard aria-hidden="true" /> Abrir panel de personal
     </Link> : <>
       <p>Verifica el correo para abrir el panel de personal.</p>
       <button className="button secondary" disabled={busy} onClick={() => act(async () => {
-        await sendEmailVerification(user);
-        return useFirebaseEmulators ? 'El enlace de verificación está disponible en el emulador de Auth.'
-          : 'Se envió un enlace de verificación a tu correo.';
+        await requestVerification(user.uid);
+        return 'Se envió un enlace de verificación a tu correo.';
       })}><MailCheck aria-hidden="true" /> Enviar enlace de verificación</button>
       <button className="button secondary" disabled={busy} onClick={() => act(async () => {
-        await user.reload();
-        await user.getIdToken(true);
-        setVerified(user.emailVerified);
-        return user.emailVerified ? 'Correo verificado.' : 'La verificación sigue pendiente.';
+        const current = await refreshSession();
+        return current?.emailVerified ? 'Correo verificado.' : 'La verificación sigue pendiente.';
       })}>Comprobar verificación</button>
     </>)}
-    <button className="button secondary" disabled={busy} onClick={() => act(() => signOut(auth))}>
+    <button className="button secondary" disabled={busy} onClick={() => act(logout)}>
       <LogOut aria-hidden="true" /> Cerrar sesión
     </button>
     {feedback && <p role={feedback.error ? 'alert' : 'status'} className="feedback">{feedback.text}</p>}
@@ -111,6 +105,6 @@ export function Profile() {
       <ProfileForm user={user} profile={value} reload={() => { setSavedBy(uid); profile.retry(); }} />
       <SessionPanel user={user} roles={value?.userRoles_on_user.map(item => item.roleCode) ?? []} />
     </div>}</Resource>
-    {profile.error && <button className="button secondary" onClick={() => signOut(auth).catch(profile.retry)}>Cerrar sesión</button>}
+    {profile.error && <button className="button secondary" onClick={() => logout().catch(profile.retry)}>Cerrar sesión</button>}
   </div>;
 }
