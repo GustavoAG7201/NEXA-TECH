@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { createAuth } from './auth.mjs';
 import { createPool } from './db.mjs';
 import { HttpError } from './errors.mjs';
+import { getLegalContact } from './legal-contact.mjs';
 import { executeOperation, findOperation } from './operations.mjs';
 
 const localHosts = new Set(['localhost', '127.0.0.1', '[::1]']);
@@ -17,13 +18,7 @@ const auth = createAuth(pool, { origin, secure, trustProxy: process.env.TRUST_PR
 const port = Number(process.env.API_PORT ?? 8787);
 const host = process.env.API_HOST ?? '127.0.0.1';
 const maxBody = 3 * 1024 * 1024;
-const legalContact = Object.fromEntries(Object.entries({
-  responsible: 'LEGAL_RESPONSIBLE',
-  address: 'LEGAL_ADDRESS',
-  privacyEmail: 'LEGAL_PRIVACY_EMAIL',
-  supportEmail: 'LEGAL_SUPPORT_EMAIL',
-  supportPhone: 'LEGAL_SUPPORT_PHONE',
-}).map(([field, variable]) => [field, process.env[variable]?.trim() || null]));
+const legalContact = getLegalContact();
 
 function send(res, status, data) {
   res.writeHead(status, {

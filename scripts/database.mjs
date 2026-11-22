@@ -78,7 +78,7 @@ const migrations = (await readdir(new URL('../dataconnect/migrations/', import.m
   .filter(name => /^\d{3}_.+\.sql$/.test(name)).sort().map(name => 'dataconnect/migrations/' + name);
 const baseSources = ['database/000_schema.sql', ...migrations, 'database/006_staff_views.sql', 'database/007_auth.sql'];
 const catalogImages = 'database/009_catalog_images.sql';
-const releaseSources = ['database/008_store_policies.sql', catalogImages];
+const releaseSources = ['database/008_store_policies.sql', catalogImages, 'database/010_policy_contact_wording.sql'];
 const sources = [...baseSources, ...releaseSources];
 const seedSources = ['dataconnect/seed/demo.sql', 'dataconnect/seed/catalog-e1.sql'];
 

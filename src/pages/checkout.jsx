@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, PackageCheck } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Delivery } from '../components/delivery.jsx';
+import { PolicyContact } from '../components/legal-contact.jsx';
 import { AddressText, Amounts, PurchaseResource } from '../components/purchase.jsx';
 import { CatalogLink, PageHeading, ProductImage, State } from '../components/ui.jsx';
 import { useAuthSession } from '../context/auth-session.js';
@@ -53,6 +54,7 @@ function QuotedOrder({ quote, terms, disabled, confirm }) {
         <details className="checkout-terms">
           <summary>{terms.title}</summary>
           <p className="policy-body">{terms.body}</p>
+          <PolicyContact kind="TERMS" />
         </details>
         <label className="check-field"><input type="checkbox" required checked={accepted}
           onChange={event => setAccepted(event.target.checked)} /> Acepto los términos y condiciones.</label>

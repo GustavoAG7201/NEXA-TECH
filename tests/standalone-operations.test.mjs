@@ -170,6 +170,9 @@ for (const [name, executable] of Object.entries(scopes)) {
     const other = await identity('otro-' + name);
     const unverified = await identity('sin-verificar-' + name, 'SUPPORT', false);
     const browser = await openBrowser(executable, localWork, 'e3-' + name);
+    await browser.send('Emulation.setEmulatedMedia', {
+      features: [{ name: 'prefers-color-scheme', value: name === 'edge' ? 'dark' : 'light' }],
+    });
     const sku = 'NEXA-E3-' + name.toUpperCase();
     const slug = 'phase-e3-' + name;
     const code = 'PROMO-E3-' + name.toUpperCase();

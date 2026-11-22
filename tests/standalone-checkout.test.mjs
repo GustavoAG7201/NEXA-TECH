@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
+import { getLegalContact } from '../server/legal-contact.mjs';
 import { identity as createIdentity, operation, startStandalone } from './helpers/standalone.mjs';
 import { openBrowser, until } from './helpers/local-browser.mjs';
 
@@ -23,6 +24,9 @@ before(async () => {
 after(async () => store?.close());
 const sql = async (query, variables) => (await db.query(query, variables)).rows;
 const one = async (query, variables) => (await sql(query, variables))[0];
+const systemTheme = (browser, value) => browser.send('Emulation.setEmulatedMedia', {
+  features: [{ name: 'prefers-color-scheme', value }],
+});
 
 const identity = (name, role, verified = true) =>
   createIdentity(store, name + '@nexatech.test', password, name, role, verified);
@@ -122,6 +126,70 @@ async function download(browser, dir, folio) {
   return [...document.matchAll(/<([0-9a-f]+)> Tj/g)].map(match => decoder.decode(Buffer.from(match[1], 'hex')));
 }
 
+test('Tema inicial, preferencias persistentes y contactos públicos en escritorio y móvil', {
+  skip: !existsSync(browsers[0][1]), timeout: 90000,
+}, async () => {
+  const browser = await openBrowser(browsers[0][1], localWork, 'tema-contacto');
+  const contact = getLegalContact();
+  const toggle = '.theme-toggle';
+  const theme = () => browser.evaluate(() => document.documentElement.dataset.theme);
+  try {
+    await systemTheme(browser, 'dark');
+    await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+      const observeTheme = new MutationObserver(() => {
+        window.themeBeforeContent = !document.getElementById('root');
+        observeTheme.disconnect();
+      });
+      observeTheme.observe(document, { attributeFilter: ['data-theme'], subtree: true, attributes: true });
+    ` });
+    await browser.go(origin + '/');
+    await browser.waitText('main h1', 'Tecnología a tu ritmo');
+    assert.equal(await theme(), 'dark');
+    assert.equal(await browser.evaluate(() => window.themeBeforeContent), true);
+    await accessible(browser, ['.theme-toggle', '.site-header .brand']);
+    await browser.viewport(320, 900);
+    assert.ok(await browser.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await browser.click(toggle);
+    assert.equal(await theme(), 'light');
+    assert.equal(await browser.evaluate(() => localStorage.getItem('nexa-theme')), 'light');
+    await browser.click('footer a[href="/ayuda"]');
+    await browser.waitText('main h1', 'Centro de ayuda');
+    assert.equal(await theme(), 'light');
+    await browser.go(origin + '/productos');
+    await browser.waitText('main h1', 'Catálogo');
+    assert.equal(await theme(), 'light');
+    await browser.click(toggle);
+    await systemTheme(browser, 'light');
+    assert.equal(await theme(), 'dark');
+    await browser.waitText('.results-count', '153 productos');
+    await accessible(browser, ['.catalog-filters label', '.product-info h3', '.product-info .stock']);
+
+    for (const [path, values, mail, phone] of [
+      ['/politicas/privacidad', [contact.responsible, contact.privacyContact, contact.address], contact.privacyEmail, contact.privacyPhone],
+      ['/politicas/terminos', [contact.provider, contact.address], contact.supportEmail, contact.supportPhone],
+      ['/politicas/soporte', [], contact.supportEmail, contact.supportPhone],
+    ]) {
+      await browser.go(origin + path);
+      await browser.waitText('.policy-contact', mail);
+      assert.equal(await theme(), 'dark');
+      const actual = await browser.evaluate(() => ({
+        fields: [...document.querySelectorAll('.policy-contact dd')].map(node => node.textContent),
+        mail: document.querySelector('.policy-contact a[href^="mailto:"]').getAttribute('href'),
+        phone: document.querySelector('.policy-contact a[href^="tel:"]').getAttribute('href'),
+      }));
+      assert.ok(values.every(value => actual.fields.includes(value)));
+      assert.equal(actual.mail, 'mailto:' + mail);
+      assert.equal(actual.phone, 'tel:' + phone.replace(/[^\d+]/g, ''));
+      await accessible(browser, ['.policy-list h2', '.policy-contact .text-link', 'footer a[href^="mailto:"]']);
+    }
+    await browser.waitText('a[href="/cuenta/soporte"].text-link', 'Abrir una solicitud de soporte');
+    await browser.waitText('footer', contact.provider);
+    assert.deepEqual(browser.errors, []);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('Registro, perfil, direcciones y políticas desde Chrome', { skip: !existsSync(browsers[0][1]), timeout: 90000 }, async () => {
   const browser = await openBrowser(browsers[0][1], localWork, 'registro');
   try {
@@ -167,6 +235,7 @@ for (const [name, executable] of browsers) {
   }, async () => {
     const suffix = name.toLowerCase();
     const browser = await openBrowser(executable, localWork, 'e2-' + suffix);
+    await systemTheme(browser, name === 'Edge' ? 'dark' : 'light');
     const buyer = await identity('comprador-' + suffix);
     const intruder = await identity('otro-' + suffix, 'SUPPORT');
     const admin = await identity('gestion-' + suffix, 'ADMIN');
@@ -343,7 +412,7 @@ for (const [name, executable] of browsers) {
       assert.deepEqual(payment, { status: 'APPROVED', provider: 'SIMULATED', amount_cents: order.total_cents });
       const terms = await one(`SELECT d.version, t.evidence_kind FROM public.terms_acceptance t
         JOIN public.legal_document d ON d.id=t.legal_document_id WHERE t.order_id=$1 AND d.kind='TERMS'`, [order.id]);
-      assert.deepEqual(terms, { version: 2, evidence_kind: 'ACCEPTED' });
+      assert.deepEqual(terms, { version: 3, evidence_kind: 'ACCEPTED' });
       await browser.go(origin + '/checkout');
       await browser.waitText('main', 'Reintentar confirmación');
       await browser.click('main section > button.primary');

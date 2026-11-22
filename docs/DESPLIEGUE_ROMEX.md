@@ -66,7 +66,9 @@ chmod 600 .nexa/private/nexatech-romex-entrega.backup
 
 SMTP es opcional para la primera puesta en marcha. Para recuperación de contraseñas configura además `SMTP_HOST`, `SMTP_FROM`, `SMTP_USER` y `SMTP_PASSWORD` en `deploy/.env`.
 
-Configura `LEGAL_RESPONSIBLE`, `LEGAL_ADDRESS`, `LEGAL_PRIVACY_EMAIL`, `LEGAL_SUPPORT_EMAIL` y `LEGAL_SUPPORT_PHONE` únicamente con los datos públicos aprobados por la administración. Las políticas muestran los datos faltantes como pendientes de validación administrativa. Completa esta validación antes de abrir el registro de cuentas al público.
+La API incluye los datos de presentación de NexaTech en `server/legal-contact.mjs`. Las variables `LEGAL_PROVIDER`, `LEGAL_RESPONSIBLE`, `LEGAL_ADDRESS`, `LEGAL_PRIVACY_CONTACT`, `LEGAL_PRIVACY_EMAIL`, `LEGAL_PRIVACY_PHONE`, `LEGAL_SUPPORT_EMAIL` y `LEGAL_SUPPORT_PHONE` permiten personalizarlos en `deploy/.env`. Deja los valores en blanco para usar la configuración incluida. El contacto de privacidad usa el nombre del responsable y los canales de atención cuando sus variables específicas están en blanco.
+
+En instalaciones existentes, revisa las variables `LEGAL_*` de `deploy/.env` antes de ejecutar `update`. La actualización o restauración aplica la migración `010_policy_contact_wording.sql` y conserva las aceptaciones históricas.
 
 ## Instalar con el respaldo de entrega
 
@@ -92,6 +94,7 @@ Comprueba servicios, integridad de base y endpoints desde el servidor o una red 
 docker compose --env-file deploy/.env -f deploy/compose.romex.yaml ps
 sh deploy/nexatech-romex.sh verify
 curl -fsS https://tarea-gustambo.romex.it.com/api/health
+curl -fsS https://tarea-gustambo.romex.it.com/api/legal-contact
 curl -fsS https://tarea-gustambo.romex.it.com/
 curl -fsSI https://tarea-gustambo.romex.it.com/catalogo/modelos/novabook-air-14.webp
 ```

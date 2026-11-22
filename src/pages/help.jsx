@@ -1,18 +1,12 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useOutletContext, useParams } from 'react-router-dom';
+import { PolicyContact, SupportLinks } from '../components/legal-contact.jsx';
 import { PageHeading, Resource, State } from '../components/ui.jsx';
 import { useResource } from '../hooks/useResource.js';
-import { request } from '../lib/api.js';
 import { loadPolicies } from '../lib/catalog.js';
 import { policyPath, policyRoutes } from '../lib/policies.js';
 
-const loadContact = () => request('legal-contact');
-const contactFields = {
-  PRIVACY: [['responsible', 'Responsable'], ['address', 'Domicilio'], ['privacyEmail', 'Contacto de privacidad']],
-  TERMS: [['responsible', 'Proveedor'], ['address', 'Domicilio'], ['supportEmail', 'Correo de atención'], ['supportPhone', 'Teléfono de atención']],
-  SUPPORT: [['supportEmail', 'Correo de atención'], ['supportPhone', 'Teléfono de atención']],
-};
-
 export function Help() {
+  const { contact } = useOutletContext();
   return <div className="wrap page reading-page">
     <PageHeading title="Centro de ayuda">Consulta cómo hacer y gestionar tus pedidos.</PageHeading>
     <div className="faq">
@@ -25,13 +19,13 @@ export function Help() {
       <Link className="button primary" to="/cuenta/soporte">Abrir centro de soporte</Link>
       <Link className="button secondary" to="/politicas">Consultar políticas</Link>
     </div>
+    <div className="action-row support-links" aria-label="Contacto de atención"><SupportLinks contact={contact.data} /></div>
   </div>;
 }
 
 export function Policies() {
   const { kind } = useParams();
   const policies = useResource(loadPolicies);
-  const contact = useResource(loadContact);
   const section = Object.entries(policyRoutes).find(([, [slug]]) => slug === kind)?.[0];
   return <div className="wrap page reading-page">
     <PageHeading title="Políticas de la tienda" />
@@ -47,11 +41,7 @@ export function Policies() {
         {visible.length ? <div className="policy-list">{visible.map(item => <article className="surface" key={item.id}>
           <h2>{item.title}</h2>
           <PolicyBody body={item.body} />
-          {contactFields[item.kind] && <Resource value={contact} label="Consultando datos de contacto…">{value =>
-            <dl className="policy-contact">{contactFields[item.kind].map(([field, label]) => <div key={field}>
-              <dt>{label}</dt><dd>{value[field] || 'Pendiente de validación administrativa'}</dd>
-            </div>)}</dl>}
-          </Resource>}
+          <PolicyContact kind={item.kind} />
           {item.kind === 'SUPPORT' && <Link className="text-link" to="/cuenta/soporte">Abrir una solicitud de soporte</Link>}
         </article>)}</div> : <State title="Política no disponible" action={<Link className="button secondary" to="/politicas">Ver todas</Link>} />}
       </>;

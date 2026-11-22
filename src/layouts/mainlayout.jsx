@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Heart, Menu, Search, ShoppingBag, UserRound, X, Zap } from 'lucide-react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { Heart, Menu, Moon, Search, ShoppingBag, Sun, UserRound, X, Zap } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthSession } from '../context/auth-session.js';
 import { useBasket } from '../context/basket.js';
+import { SupportLinks } from '../components/legal-contact.jsx';
+import { useResource } from '../hooks/useResource.js';
+import { request } from '../lib/api.js';
 import { commerceMessage } from '../lib/commerce.js';
 import { policyPath, policyRoutes } from '../lib/policies.js';
 import { CartDrawer } from '../pages/cart.jsx';
@@ -11,6 +14,7 @@ const navigation = [
   ['Catálogo', '/productos'], ['Computadoras', '/productos?cat=computadoras'],
   ['Audio', '/productos?cat=audio'], ['Smartphones', '/productos?cat=smartphones'], ['Ayuda', '/ayuda'],
 ];
+const loadContact = () => request('legal-contact');
 
 function Brand() {
   return <Link className="brand" to="/" aria-label="NexaTech, inicio">
@@ -30,9 +34,18 @@ function SearchForm() {
   }
   return <form className="header-search" role="search" aria-label="Buscar en la tienda" onSubmit={search}>
     <input key={query} aria-label="Buscar en la tienda" name="q" type="search" maxLength="100" defaultValue={query}
-      placeholder="Busca un producto, marca o SKU" />
+      placeholder="Producto, marca o SKU" />
     <button className="icon-button" aria-label="Buscar"><Search aria-hidden="true" /></button>
   </form>;
+}
+
+function ThemeToggle() {
+  const { getSnapshot, subscribe, toggle } = window.nexaTheme;
+  const dark = useSyncExternalStore(subscribe, getSnapshot) === 'dark';
+  return <button type="button" className="icon-button theme-toggle" onClick={toggle}
+    aria-label="Modo oscuro" aria-pressed={dark} title={dark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
+    {dark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+  </button>;
 }
 
 function Header() {
@@ -44,7 +57,7 @@ function Header() {
   return <header className="site-header">
     <div className="wrap header-main">
       <Brand />
-      <SearchForm />
+      <div className="header-search-row"><SearchForm />{window.nexaTheme && <ThemeToggle />}</div>
       <div className="header-actions">
         <Link className="icon-button" to="/wishlist" aria-label={'Favoritos (' + favorites.length + ')'}>
           <Heart aria-hidden="true" />{favorites.length > 0 && <span className="counter">{favorites.length}</span>}
@@ -75,15 +88,17 @@ function Header() {
   </header>;
 }
 
-function Footer() {
+function Footer({ contact }) {
   return <footer className="site-footer">
     <div className="wrap footer-content">
-      <div><Brand /><p>Tienda de tecnología.</p></div>
+      <div><Brand />{contact && <><p>{contact.provider}</p><p className="footer-address">{contact.address}</p></>}</div>
       <div><h2>Catálogo</h2>{navigation.slice(1, 4).map(([name, url]) => <Link key={url} to={url}>{name}</Link>)}</div>
       <nav aria-label="Políticas de NexaTech"><h2>Políticas de la tienda</h2>
         {Object.entries(policyRoutes).map(([kind, [, label]]) => <Link key={kind} to={policyPath(kind)}>{label}</Link>)}
       </nav>
-      <div><h2>Ayuda</h2><Link to="/ayuda">Centro de ayuda</Link><Link to="/cuenta/soporte">Soporte</Link></div>
+      <div><h2>Ayuda</h2><Link to="/ayuda">Centro de ayuda</Link><Link to="/cuenta/soporte">Soporte</Link>
+        <SupportLinks contact={contact} />
+      </div>
     </div>
     <div className="wrap footer-note">Precios en pesos mexicanos. No se realizan cargos reales.</div>
   </footer>;
@@ -109,12 +124,13 @@ function RoutePosition() {
 
 export function MainLayout() {
   const { favoriteError } = useBasket();
+  const contact = useResource(loadContact);
   return <>
     <a className="skip-link" href="#contenido">Saltar al contenido</a>
     <Header />
     {favoriteError && <p className="wrap feedback error" role="alert">Favoritos. {commerceMessage(favoriteError)}</p>}
-    <main id="contenido" tabIndex="-1"><Outlet /></main>
-    <Footer />
+    <main id="contenido" tabIndex="-1"><Outlet context={{ contact }} /></main>
+    <Footer contact={contact.data} />
     <CartDrawer />
     <RoutePosition />
   </>;

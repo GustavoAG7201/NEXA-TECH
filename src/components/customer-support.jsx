@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import * as account from '../lib/account-api.js';
 import { useResource } from '../hooks/useResource.js';
 import { canonicalUuid, loadOrder, orderDate, readOwned } from '../lib/commerce.js';
 import { labelFor, messagePageSize, textValue } from '../lib/operations.js';
 import { TicketMessages } from './cases.jsx';
+import { SupportLinks } from './legal-contact.jsx';
 import { CommandForm, Pager, RecordList } from './operations.jsx';
 import { PurchaseResource, PurchaseSession } from './purchase.jsx';
 import { PageHeading, State } from './ui.jsx';
@@ -77,11 +78,13 @@ function TicketDetail({ uid, id }) {
 
 export function MySupport() {
   const { id } = useParams();
+  const { contact } = useOutletContext();
   const [params] = useSearchParams();
   const orderId = canonicalUuid(params.get('pedido')) ?? undefined;
   return <PurchaseSession>{user => <div className="wrap page">
     <PageHeading title={id === 'nuevo' ? 'Nuevo ticket de soporte' : id ? 'Ticket de soporte' : 'Mis tickets de soporte'} />
     {id === 'nuevo' ? <OpenTicket key={user.uid + (orderId ?? '')} uid={user.uid} orderId={orderId} />
       : id ? <TicketDetail key={user.uid + id} uid={user.uid} id={canonicalUuid(id)} /> : <TicketList key={user.uid} uid={user.uid} />}
+    {!id && <div className="action-row support-links" aria-label="Contacto de atención"><SupportLinks contact={contact.data} /></div>}
   </div>}</PurchaseSession>;
 }

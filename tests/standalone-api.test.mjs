@@ -5,6 +5,7 @@ import { createServer } from 'node:net';
 import { after, before, test } from 'node:test';
 import { bootstrapFirstAdmin } from '../server/auth.mjs';
 import { createPool } from '../server/db.mjs';
+import { getLegalContact } from '../server/legal-contact.mjs';
 import { queries } from '../server/queries.mjs';
 import { identity, operation, post, startStandalone } from './helpers/standalone.mjs';
 
@@ -90,6 +91,12 @@ test('SQL compilado con rol restringido y catálogo de 153 productos' + (backup 
     const { legalDocuments } = await operation('GetPublishedPolicies', publicActor);
     assert.deepEqual(legalDocuments.map(policy => policy.kind), ['CANCELLATION', 'PRIVACY', 'RETURN', 'SHIPPING', 'SUPPORT', 'TERMS', 'WARRANTY']);
     assert.ok(legalDocuments.every(policy => policy.body.length > 300));
+    assert.ok(legalDocuments.every(policy => !/una vez validados/.test(policy.body)));
+    assert.equal(legalDocuments.find(policy => policy.kind === 'TERMS').version, 3);
+    const { rows: versions } = await store.db.query("SELECT version, withdrawn_at FROM public.legal_document WHERE kind = 'TERMS' ORDER BY version");
+    assert.deepEqual(versions.map(version => [version.version, version.withdrawn_at !== null]), [[1, true], [2, true], [3, false]]);
+    const contacts = await fetch(store.origin + '/api/legal-contact');
+    assert.deepEqual(await contacts.json(), getLegalContact());
     if (backup) {
       for (const name of ['public.app_user', 'public.address', 'public.commerce_command', 'public.customer_order',
         'nexa_auth.identity', 'nexa_auth.session', 'nexa_auth.email_token', 'nexa_auth.rate_limit']) {
