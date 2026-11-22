@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { after, before, test } from 'node:test';
 import { bootstrapFirstAdmin } from '../server/auth.mjs';
@@ -75,6 +76,20 @@ test('SQL compilado con rol restringido y catálogo de 153 productos' + (backup 
       if (page.length < 30) break;
     }
     assert.equal(new Set(products).size, 153);
+    const { rows: images } = await store.db.query(`SELECT src, position, alt FROM public.product_image ORDER BY position`);
+    assert.equal(images.filter(image => image.position === 0).length, 153);
+    assert.equal(images.filter(image => image.position === 1).length, 101);
+    const hashes = await Promise.all(images.map(async ({ src, alt }) => {
+      assert.match(src, /^\/catalogo\/modelos\/[a-z0-9-]+\.webp$/);
+      assert.ok(alt.trim());
+      const bytes = await readFile(new URL('../public' + src, import.meta.url));
+      assert.equal(bytes.subarray(8, 12).toString(), 'WEBP');
+      return createHash('sha256').update(bytes).digest('hex');
+    }));
+    assert.equal(new Set(hashes).size, images.length);
+    const { legalDocuments } = await operation('GetPublishedPolicies', publicActor);
+    assert.deepEqual(legalDocuments.map(policy => policy.kind), ['CANCELLATION', 'PRIVACY', 'RETURN', 'SHIPPING', 'SUPPORT', 'TERMS', 'WARRANTY']);
+    assert.ok(legalDocuments.every(policy => policy.body.length > 300));
     if (backup) {
       for (const name of ['public.app_user', 'public.address', 'public.commerce_command', 'public.customer_order',
         'nexa_auth.identity', 'nexa_auth.session', 'nexa_auth.email_token', 'nexa_auth.rate_limit']) {

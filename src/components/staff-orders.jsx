@@ -58,8 +58,8 @@ function ShipmentForm({ uid, order, reload }) {
       {actions.map(([code]) => <option key={code} value={code}>{shipmentLabel(code)}</option>)}
     </select></label>}
     {dispatch && <div className="operation-fields">
-      <label>Transportista simulado<input name="carrier" required maxLength={80} defaultValue="NexaTech Académico" /></label>
-      <label>Guía ficticia<input name="trackingCode" required maxLength={100} defaultValue={'DEMO-' + order.folio} /></label>
+      <label>Transportista de referencia<input name="carrier" required maxLength={80} defaultValue="NexaTech" /></label>
+      <label>Guía de referencia<input name="trackingCode" required maxLength={100} defaultValue={'GUIA-' + order.folio} /></label>
     </div>}
     <label>Nota visible al comprador<textarea name="detail" rows={2} maxLength={500}
       required={selected === 'INCIDENT' || selected === 'DELIVERY_ATTEMPT_FAILED'} /></label>
@@ -81,7 +81,7 @@ export function StaffOrder({ uid, id }) {
       <article className="surface form-stack">
         <h2>{value.folio}</h2>
         <p><time dateTime={value.confirmedAt}>{orderDate(value.confirmedAt)}</time> · {orderStatus(value.status)}</p>
-        <p>Pago simulado <strong>{paymentStatus(value.payment_on_order?.status)}</strong></p>
+        <p>Validación del pedido <strong>{paymentStatus(value.payment_on_order?.status)}</strong></p>
         <ul className="purchase-lines">{value.orderItems_on_order.map(item => <li key={item.id}>
           <div><strong>{item.skuSnapshot}</strong><p>{item.nameSnapshot}</p></div>
           <span>{item.quantity} × {exactMoney(item.unitPriceCents)}</span>

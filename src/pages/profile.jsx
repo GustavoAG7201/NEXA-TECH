@@ -1,10 +1,13 @@
 import { useCallback, useState } from 'react';
 import { LayoutDashboard, LogOut, MailCheck, UserRound } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
+import { Delivery } from '../components/delivery.jsx';
+import { PurchaseResource } from '../components/purchase.jsx';
 import { PageHeading, Resource } from '../components/ui.jsx';
 import { useAuthSession } from '../context/auth-session.js';
 import { useResource } from '../hooks/useResource.js';
 import { identityError, loadMyProfile, saveProfile } from '../lib/account.js';
+import { loadAddresses } from '../lib/commerce.js';
 import { logout, refreshSession, requestVerification } from '../lib/session.js';
 
 const roleNames = { CUSTOMER: 'Cliente', ADMIN: 'Administración', SUPPORT: 'Soporte' };
@@ -16,14 +19,19 @@ function ProfileForm({ user, profile, reload }) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const name = form.get('name').trim();
+    const phone = form.get('phone').trim();
     if (!name) {
-      setFeedback({ error: true, text: 'Escribe tu nombre.' });
+      setFeedback({ error: true, text: 'Escribe tu nombre completo.' });
+      return;
+    }
+    if (phone && (!/^\+?[\d ()-]+$/.test(phone) || !/^\d{7,15}$/.test(phone.replace(/\D/g, '')))) {
+      setFeedback({ error: true, text: 'Escribe un teléfono válido con entre 7 y 15 dígitos.' });
       return;
     }
     setBusy(true);
     setFeedback(null);
     try {
-      await saveProfile(user.uid, name, form.get('phone').trim());
+      await saveProfile(user.uid, name, phone);
       reload();
     } catch (failure) {
       setFeedback({ error: true, text: identityError(failure) });
@@ -32,17 +40,31 @@ function ProfileForm({ user, profile, reload }) {
     }
   }
   return <form className="surface form-stack" onSubmit={submit}>
-    <h2>Datos de perfil</h2>
-    <p role="status" className="muted">Perfil asociado a tu cuenta en PostgreSQL.</p>
+    <h2>Datos personales</h2>
     <fieldset disabled={busy}>
       <label>Nombre completo<input name="name" autoComplete="name" defaultValue={profile?.displayName ?? user.displayName ?? ''}
         maxLength="120" required /></label>
-      <label>Teléfono de prueba (opcional)<input name="phone" type="tel" autoComplete="tel" defaultValue={profile?.phone ?? ''}
+      <label>Teléfono (opcional)<input name="phone" type="tel" autoComplete="tel" defaultValue={profile?.phone ?? ''}
         maxLength="25" /></label>
       <button className="button primary">{busy ? 'Guardando…' : 'Guardar perfil'}</button>
     </fieldset>
     {feedback && <p role="alert" className="feedback error">{feedback.text}</p>}
   </form>;
+}
+
+function ProfileAddresses({ uid }) {
+  const [selected, setSelected] = useState(null);
+  const [editor, setEditor] = useState(null);
+  const [saved, setSaved] = useState(false);
+  const read = useCallback(() => loadAddresses(uid), [uid]);
+  const addresses = useResource(read);
+  return <PurchaseResource resource={addresses} label="Consultando direcciones…">{items => <>
+    <Delivery title="Mis direcciones" uid={uid} addresses={items} editor={editor} select={setSelected}
+      address={items.find(item => item.id === selected) ?? items.find(item => item.isDefault) ?? items[0]}
+      edit={id => { setEditor(id); setSaved(false); }}
+      saved={id => { setSelected(id); setEditor(null); setSaved(true); addresses.retry(); }} />
+    {saved && <p className="feedback" role="status">Dirección guardada.</p>}
+  </>}</PurchaseResource>;
 }
 
 function SessionPanel({ user, roles }) {
@@ -102,7 +124,10 @@ export function Profile() {
     <PageHeading title="Mi perfil">Consulta y actualiza los datos de tu cuenta.</PageHeading>
     {profile.data && savedBy === uid && <p className="feedback" role="status">Perfil guardado.</p>}
     <Resource value={profile} label="Consultando perfil…">{value => <div className="account-grid" key={uid}>
-      <ProfileForm user={user} profile={value} reload={() => { setSavedBy(uid); profile.retry(); }} />
+      <div className="form-stack">
+        <ProfileForm user={user} profile={value} reload={() => { setSavedBy(uid); profile.retry(); }} />
+        <ProfileAddresses uid={uid} />
+      </div>
       <SessionPanel user={user} roles={value?.userRoles_on_user.map(item => item.roleCode) ?? []} />
     </div>}</Resource>
     {profile.error && <button className="button secondary" onClick={() => logout().catch(profile.retry)}>Cerrar sesión</button>}

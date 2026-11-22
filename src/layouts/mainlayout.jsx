@@ -4,6 +4,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from
 import { useAuthSession } from '../context/auth-session.js';
 import { useBasket } from '../context/basket.js';
 import { commerceMessage } from '../lib/commerce.js';
+import { policyPath, policyRoutes } from '../lib/policies.js';
 import { CartDrawer } from '../pages/cart.jsx';
 
 const navigation = [
@@ -77,12 +78,14 @@ function Header() {
 function Footer() {
   return <footer className="site-footer">
     <div className="wrap footer-content">
-      <div><Brand /><p>Tienda académica de tecnología.</p></div>
+      <div><Brand /><p>Tienda de tecnología.</p></div>
       <div><h2>Catálogo</h2>{navigation.slice(1, 4).map(([name, url]) => <Link key={url} to={url}>{name}</Link>)}</div>
-      <div><h2>Información</h2><Link to="/ayuda">Centro de ayuda</Link><Link to="/politicas">Políticas de la demostración</Link>
-        <Link to="/politicas/privacidad">Privacidad</Link><Link to="/politicas/terminos">Términos</Link></div>
+      <nav aria-label="Políticas de NexaTech"><h2>Políticas de la tienda</h2>
+        {Object.entries(policyRoutes).map(([kind, [, label]]) => <Link key={kind} to={policyPath(kind)}>{label}</Link>)}
+      </nav>
+      <div><h2>Ayuda</h2><Link to="/ayuda">Centro de ayuda</Link><Link to="/cuenta/soporte">Soporte</Link></div>
     </div>
-    <div className="wrap footer-note">NexaTech · Precios de demostración en pesos mexicanos</div>
+    <div className="wrap footer-note">Precios en pesos mexicanos. No se realizan cargos reales.</div>
   </footer>;
 }
 

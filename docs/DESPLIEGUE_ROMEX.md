@@ -14,7 +14,7 @@ El navegador abre la interfaz y la API por el mismo origen. PostgreSQL no public
 - Red externa de Docker llamada `traefik`.
 - Traefik atendiendo los entrypoints `web` (80) y `websecure` (443).
 - Cloudflare Tunnel ya conectado al servidor y un hostname publicado hacia `https://localhost:443`, con la verificación TLS de origen configurada como en las demás aplicaciones Romex.
-- Una copia autorizada del repositorio y, si se usará la carga académica, `nexatech-demostracion.backup`.
+- Una copia autorizada de `deploy/romex`. Para restaurar la entrega, usa `nexatech-romex-entrega.backup`, que contiene el catálogo y la configuración inicial.
 
 No ejecutar `deploy/compose.yaml` en este servidor: esa variante publica 80 y 443 directamente para una instalación autónoma y competiría con Traefik.
 
@@ -23,15 +23,15 @@ No ejecutar `deploy/compose.yaml` en este servidor: esa variante publica 80 y 44
 Clona el repositorio en la carpeta de aplicaciones y entra a su raíz:
 
 ```sh
-git clone https://github.com/GustavoAG7201/NEXA-TECH.git /srv/romex/apps/nexatech
+git clone --branch deploy/romex --single-branch https://github.com/GustavoAG7201/NEXA-TECH.git /srv/romex/apps/nexatech
 cd /srv/romex/apps/nexatech
 ```
 
 Actualiza la copia cuando haya un commit aprobado:
 
 ```sh
-git fetch origin
-git pull --ff-only origin main
+git switch deploy/romex
+git pull --ff-only origin deploy/romex
 ```
 
 ## Configuración privada
@@ -60,18 +60,20 @@ Restringe los permisos y, si se restaurará la demostración, coloca el archivo 
 
 ```sh
 chmod 600 deploy/.env
-cp /ruta/privada/nexatech-demostracion.backup .nexa/private/
-chmod 600 .nexa/private/nexatech-demostracion.backup
+cp /ruta/privada/nexatech-romex-entrega.backup .nexa/private/
+chmod 600 .nexa/private/nexatech-romex-entrega.backup
 ```
 
 SMTP es opcional para la primera puesta en marcha. Para recuperación de contraseñas configura además `SMTP_HOST`, `SMTP_FROM`, `SMTP_USER` y `SMTP_PASSWORD` en `deploy/.env`.
 
-## Instalar con la demostración académica
+Configura `LEGAL_RESPONSIBLE`, `LEGAL_ADDRESS`, `LEGAL_PRIVACY_EMAIL`, `LEGAL_SUPPORT_EMAIL` y `LEGAL_SUPPORT_PHONE` únicamente con los datos públicos aprobados por la administración. Las políticas muestran los datos faltantes como pendientes de validación administrativa. Completa esta validación antes de abrir el registro de cuentas al público.
+
+## Instalar con el respaldo de entrega
 
 La instalación construye React, API y herramientas de mantenimiento; levanta PostgreSQL 18 privado; restaura el respaldo; verifica restricciones, índices, disparadores e inventario; y finalmente inicia API y web.
 
 ```sh
-sh deploy/nexatech-romex.sh install nexatech-demostracion.backup
+sh deploy/nexatech-romex.sh install nexatech-romex-entrega.backup
 ```
 
 Para una instalación limpia con las semillas versionadas en el repositorio, omite el nombre del respaldo:
@@ -91,6 +93,7 @@ docker compose --env-file deploy/.env -f deploy/compose.romex.yaml ps
 sh deploy/nexatech-romex.sh verify
 curl -fsS https://tarea-gustambo.romex.it.com/api/health
 curl -fsS https://tarea-gustambo.romex.it.com/
+curl -fsSI https://tarea-gustambo.romex.it.com/catalogo/modelos/novabook-air-14.webp
 ```
 
 El health check debe devolver `{"status":"ok"}`. La interfaz y la API usan el mismo dominio: Caddy entrega React y reenvía `/api/` al contenedor Node, mientras Traefik conserva TLS y Cloudflare expone el hostname.
@@ -106,18 +109,29 @@ sh deploy/nexatech-romex.sh admin correo@ejemplo.com "Administración NexaTech"
 Actualizar a un commit ya revisado:
 
 ```sh
-git pull --ff-only origin main
+git switch deploy/romex
+git pull --ff-only origin deploy/romex
 sh deploy/nexatech-romex.sh update
 sh deploy/nexatech-romex.sh verify
 ```
 
-Crear un respaldo de demostración reproducible:
+Crear un respaldo de entrega reproducible:
 
 ```sh
-sh deploy/nexatech-romex.sh backup nexatech-demostracion.backup
+sh deploy/nexatech-romex.sh backup nexatech-romex-entrega.backup
 ```
 
-El respaldo generado queda en `.nexa/private/`. Un respaldo operativo de producción debe planificarse por separado para conservar las cuentas y transacciones reales autorizadas.
+El respaldo generado queda en `.nexa/private/`. Usa una base temporal con las semillas del repositorio y excluye cuentas, sesiones, direcciones y pedidos. En local, el comando equivalente es `npm run db:backup -- .nexa/private/nexatech-romex-entrega.backup` con PostgreSQL en ejecución. Para conservar cuentas o transacciones de una instalación existente, usa el procedimiento de respaldo operativo del servidor.
+
+## Presentación local
+
+```sh
+npm ci
+npm run local:setup
+npm run dev
+```
+
+Abre `http://127.0.0.1:5173`. Ejecuta `npm run local:start` antes de `npm run dev` si ya instalaste el clúster local y está detenido. La publicación requiere que el administrador valide los datos legales, configure los secretos y el hostname de Cloudflare, y ejecute la instalación y los comandos de verificación anteriores.
 
 ## Diagnóstico seguro
 
@@ -126,6 +140,8 @@ El respaldo generado queda en `.nexa/private/`. Un respaldo operativo de producc
 - Los servicios se consultan con `docker compose --env-file deploy/.env -f deploy/compose.romex.yaml logs -f api web db`.
 - La base no debe tener `ports:`. Accede a ella solo mediante `db-tools` o desde la red interna de Compose.
 
-## Decisión de autenticación
+## Referencias de las políticas
 
-La implementación autónoma incluida en este repositorio usa sus propias tablas de identidad, sesiones y recuperación de contraseña en PostgreSQL. No depende de Firebase Authentication ni de Firebase SQL Connect. Antes de mezclarla con una integración Firebase previa, decide cuál será la fuente de identidad; no actives las dos para la misma cuenta sin una migración explícita.
+- [Ley Federal de Protección al Consumidor](https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPC.pdf).
+- [Ley Federal de Protección de Datos Personales en Posesión de los Particulares](https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPDPPP.pdf).
+- [Orientación y reclamaciones de Profeco](https://profeco.gob.mx/Concilianet/faq.jsp).

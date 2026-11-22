@@ -11,7 +11,8 @@ function ImageAsset({ image, eager }) {
   if (!image?.src || failed) return <div className="image-placeholder">
     <ImageOff aria-hidden="true" /><span>Imagen no disponible</span>
   </div>;
-  return <img src={image.src} alt={image.alt ?? ''} loading={eager ? 'eager' : 'lazy'} decoding="async" onError={() => setFailed(true)} />;
+  return <img src={image.src} alt={image.alt ?? ''} loading={eager ? 'eager' : 'lazy'} fetchPriority={eager ? 'high' : undefined}
+    decoding="async" onError={() => setFailed(true)} />;
 }
 
 export function PageHeading({ title, children, eyebrow }) {

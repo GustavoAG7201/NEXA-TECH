@@ -8,7 +8,7 @@ import { ShipmentTracking } from '../components/shipment.jsx';
 import { CatalogLink, PageHeading, State } from '../components/ui.jsx';
 import { useResource } from '../hooks/useResource.js';
 import {
-  canonicalUuid, checkSession, commerceMessage, exactMoney, loadOrder, loadOrders, orderDate, orderStatus, paymentStatus, receiptNotice,
+  canonicalUuid, checkSession, commerceMessage, exactMoney, loadOrder, loadOrders, noChargeNotice, orderDate, orderStatus, receiptNotice,
 } from '../lib/commerce.js';
 
 function ReceiptButton({ uid, id }) {
@@ -69,13 +69,13 @@ function OrderDetails({ uid, id, confirmation }) {
     <PurchaseResource resource={order} label="Consultando tu pedido…">{value => {
       if (!value) return <State title="Pedido no disponible" action={<Link className="button primary" to="/pedidos">Ir a mis pedidos</Link>} />;
       return <>
-        <PageHeading title={confirmation ? 'Compra simulada confirmada' : 'Detalle de tu pedido'}>
+        <PageHeading title={confirmation ? 'Confirmación de pedido' : 'Detalle de tu pedido'}>
           Folio {value.folio}
         </PageHeading>
         <div className="checkout-grid">
           <div className="checkout-steps">
             <section className="surface form-stack">
-              <h2>Productos comprados</h2>
+              <h2>Productos del pedido</h2>
               <ul className="purchase-lines">{value.orderItems_on_order.map(item => <li key={item.id}>
                 <div><strong>{item.nameSnapshot}</strong><p className="muted">{item.optionSnapshot} · {item.skuSnapshot}</p></div>
                 <span>{item.quantity} × {exactMoney(item.unitPriceCents)}</span>
@@ -84,7 +84,6 @@ function OrderDetails({ uid, id, confirmation }) {
             <section className="surface form-stack">
               <h2>Entrega</h2>
               {value.orderAddress_on_order && <AddressText address={value.orderAddress_on_order} />}
-              {value.shipment_on_order && <p>{value.shipment_on_order.methodSnapshot}</p>}
             </section>
             <ShipmentTracking shipment={value.shipment_on_order} orderEvents={value.orderStatusEvents_on_order} />
             <OrderAfterSale uid={uid} order={value} />
@@ -93,7 +92,7 @@ function OrderDetails({ uid, id, confirmation }) {
             <h2>Resumen del pedido</h2>
             <p className="muted"><time dateTime={value.confirmedAt}>{orderDate(value.confirmedAt)}</time> (hora de Matamoros)</p>
             <p>Estado del pedido <strong>{orderStatus(value.status)}</strong></p>
-            <p>Pago simulado <strong>{paymentStatus(value.payment_on_order?.status)}</strong></p>
+            <p className="muted">{noChargeNotice}</p>
             <Amounts data={value} />
             <ReceiptButton uid={uid} id={value.id} />
             <p className="muted">{receiptNotice}</p>

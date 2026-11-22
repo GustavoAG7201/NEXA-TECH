@@ -183,7 +183,7 @@ export const queries = {
       FROM public.legal_document t0
       WHERE t0.published_at <= statement_timestamp()
         AND t0.withdrawn_at IS NULL
-      ORDER BY t0.kind ASC
+      ORDER BY t0.kind ASC, t0.version DESC
       LIMIT 20
       ) AS page
     ) AS result`,

@@ -1,4 +1,4 @@
-import { addressLines, exactMoney, orderDate, orderStatus, paymentStatus, receiptNotice, totalAmount, totals } from './commerce.js';
+import { addressLines, exactMoney, noChargeNotice, orderDate, orderStatus, receiptNotice, totalAmount, totals } from './commerce.js';
 
 const width = 612;
 const height = 792;
@@ -145,10 +145,10 @@ export function buildReceipt(order) {
   }
 
   beginPage();
-  line('Fecha de compra  ' + orderDate(order.confirmedAt) + ' (hora de Matamoros)');
-  line('Pedido  ' + orderStatus(order.status) + '    |    Pago simulado  ' + paymentStatus(order.payment_on_order?.status));
+  line('Fecha del pedido  ' + orderDate(order.confirmedAt) + ' (hora de Matamoros)');
+  line('Estado del pedido  ' + orderStatus(order.status));
   y += 14;
-  heading('Comprador y entrega');
+  heading('Cliente y dirección de referencia');
   const address = order.orderAddress_on_order;
   for (const part of [order.contactEmail, address.recipient, ...addressLines(address), address.phone]) line(part);
   y += 17;
@@ -190,7 +190,7 @@ export function buildReceipt(order) {
   const streams = pages.map((page, index) => {
     ops = page;
     rect(margin, 747, right - margin, 1, '#d9e1ee');
-    text('NexaTech · Tienda académica', margin, 766, { size: 9, color: muted });
+    text(noChargeNotice, margin, 766, { size: 9, color: muted });
     text('Página ' + (index + 1) + ' de ' + count, right - 63, 766, { size: 9, color: muted });
     return ops.join('\n');
   });

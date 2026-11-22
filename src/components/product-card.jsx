@@ -17,7 +17,7 @@ export function ProductPrice({ variant }) {
   const compare = Number(variant.compareAtCents) > Number(variant.unitPriceCents);
   return <span className="product-price">
     <strong>{money(variant.unitPriceCents)}</strong>
-    {compare && <del aria-label={'Precio anterior simulado ' + money(variant.compareAtCents)}>{money(variant.compareAtCents)}</del>}
+    {compare && <del aria-label={'Precio de referencia ' + money(variant.compareAtCents)}>{money(variant.compareAtCents)}</del>}
   </span>;
 }
 
@@ -25,11 +25,11 @@ export function ProductCard({ product }) {
   const variant = preferredVariant(product);
   const { add, locked } = useBasket();
   const url = '/producto/' + product.slug;
-  const sale = product.specs?.origenPrecio === 'simulado' && Number(variant.compareAtCents) > Number(variant.unitPriceCents);
+  const sale = Number(variant.compareAtCents) > Number(variant.unitPriceCents);
   return <article className="product-card">
     <div className="product-photo">
       <Link to={url} tabIndex="-1" aria-hidden="true"><ProductImage image={product.images[0]} /></Link>
-      {sale && <span className="photo-label">Oferta simulada</span>}
+      {sale && <span className="photo-label">Oferta</span>}
       <FavoriteButton product={product} />
     </div>
     <div className="product-info">

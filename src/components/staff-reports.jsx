@@ -24,10 +24,10 @@ export function OverviewTotals({ uid, compact = false }) {
       if (!value) return <p className="muted">Indicadores no disponibles para esta cuenta.</p>;
       const metrics = [
         ['Pedidos registrados', count(value.orderCount)],
-        ['Ventas simuladas netas', exactMoney(BigInt(value.grossCents) - BigInt(value.refundedCents))],
+        ['Importe neto de pedidos', exactMoney(BigInt(value.grossCents) - BigInt(value.refundedCents))],
         ['Unidades disponibles', count(value.availableUnits)],
         ['Variantes con bajo inventario', count(value.lowStockVariants)],
-        ['Cobros simulados brutos', exactMoney(value.grossCents)],
+        ['Importe bruto de pedidos', exactMoney(value.grossCents)],
         ['Importe reembolsado', exactMoney(value.refundedCents)],
         ['Reembolsos aprobados', count(value.refundCount)],
         ['Canjes registrados', count(value.couponUses)],
@@ -130,10 +130,10 @@ function PeriodReport({ uid }) {
         </section>
       </div>
       <section className="form-stack">
-        <h3>Ventas simuladas por día</h3>
-        <p className="muted">Los cobros y los reembolsos se contabilizan en sus fechas de aprobación.</p>
+        <h3>Pedidos por día</h3>
+        <p className="muted">Los pedidos y los reembolsos se contabilizan en sus fechas de registro. Los importes son de referencia.</p>
         <RecordList items={daily} render={row => <li key={row.day}><time dateTime={row.day}>{row.day}</time>
-          <span>{count(row.orderCount)} cobros</span><strong>{exactMoney(row.netCents)}</strong></li>} />
+          <span>{count(row.orderCount)} pedidos</span><strong>{exactMoney(row.netCents)}</strong></li>} />
       </section>
     </>}</PurchaseResource>
   </section>;

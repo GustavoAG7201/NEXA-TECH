@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash, createHmac, pbkdf2Sync, randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { chmod, mkdir, readFile, readdir, rename } from 'node:fs/promises';
+import { chmod, mkdir, readFile, readdir, rename, rm } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client } from '../server/db.mjs';
@@ -76,10 +76,14 @@ async function using(connectionString, action) {
 
 const migrations = (await readdir(new URL('../dataconnect/migrations/', import.meta.url)))
   .filter(name => /^\d{3}_.+\.sql$/.test(name)).sort().map(name => 'dataconnect/migrations/' + name);
-const sources = ['database/000_schema.sql', ...migrations, 'database/006_staff_views.sql', 'database/007_auth.sql'];
+const baseSources = ['database/000_schema.sql', ...migrations, 'database/006_staff_views.sql', 'database/007_auth.sql'];
+const catalogImages = 'database/009_catalog_images.sql';
+const releaseSources = ['database/008_store_policies.sql', catalogImages];
+const sources = [...baseSources, ...releaseSources];
 const seedSources = ['dataconnect/seed/demo.sql', 'dataconnect/seed/catalog-e1.sql'];
 
 async function apply(db, files) {
+  let applied = false;
   for (const file of files) {
     const name = file.split('/').at(-1);
     const sql = await read(file);
@@ -89,11 +93,13 @@ async function apply(db, files) {
       if (previous) throw new Error('Cambió un SQL aplicado: ' + name);
       await db.query(sql);
       await db.query('INSERT INTO nexa_migrations.applied (name, checksum) VALUES ($1, $2)', [name, checksum(sql)]);
+      applied = true;
     });
   }
+  return applied;
 }
 
-async function migrate(db) {
+async function migrate(db, seed = false) {
   const { rows: [existing] } = await db.query(`
     SELECT to_regclass('nexa_migrations.applied') IS NULL AND
       EXISTS (SELECT 1 FROM pg_class WHERE relnamespace = 'public'::regnamespace) AS unmanaged`);
@@ -104,8 +110,14 @@ async function migrate(db) {
     CREATE TABLE IF NOT EXISTS nexa_migrations.applied (
       name text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now()
     )`);
-  await apply(db, sources);
-  if (args.includes('--seed')) await apply(db, seedSources);
+  await apply(db, baseSources);
+  const seeded = seed && await apply(db, seedSources);
+  await apply(db, releaseSources);
+  // A previously empty installation can receive the catalog after the migration was applied.
+  if (seeded) {
+    const sql = await read(catalogImages);
+    await transact(db, () => db.query(sql));
+  }
 }
 
 const allowedReads = [
@@ -206,25 +218,29 @@ async function createBackup(owner, path) {
     url.pathname = '/' + name;
     return { url, database: name, user: owner.user, password: owner.password };
   });
-  await using(template.url.href, async db => {
-    await migrate(db);
-    if (!args.includes('--seed')) await apply(db, seedSources);
-    const { rows: [report] } = await db.query(await read('database/verify.sql'));
-    if (report.products !== '153' || report.inventory_differences !== '0' || !report.protections_ready) {
-      throw new Error('Respaldo suspendido por error en las semillas.');
-    }
-    const { rows } = await db.query(`
-      SELECT n.nspname AS schema, c.relname AS name FROM pg_class c
-      JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname IN ('public', 'nexa_auth', 'nexa_migrations') AND c.relkind IN ('r','p')`);
-    const excluded = rows.filter(({ schema, name }) => schema !== 'nexa_migrations' &&
-      !(schema === 'public' && seedTables.includes(name)));
-    pgTool('pg_dump', template, ['-Fc', '--no-owner', '--no-privileges',
-      ...excluded.map(({ schema, name }) => '--exclude-table-data=' + schema + '.' + name),
-      '--file', output + '.partial']);
-  });
-  if (process.platform !== 'win32') await chmod(output + '.partial', 0o600);
-  await rename(output + '.partial', output);
+  try {
+    await using(template.url.href, async db => {
+      await migrate(db, true);
+      const { rows: [report] } = await db.query(await read('database/verify.sql'));
+      if (report.products !== '153' || report.inventory_differences !== '0' || !report.protections_ready) {
+        throw new Error('Respaldo suspendido por error en las semillas.');
+      }
+      const { rows } = await db.query(`
+        SELECT n.nspname AS schema, c.relname AS name FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname IN ('public', 'nexa_auth', 'nexa_migrations') AND c.relkind IN ('r','p')`);
+      const excluded = rows.filter(({ schema, name }) => schema !== 'nexa_migrations' &&
+        !(schema === 'public' && seedTables.includes(name)));
+      pgTool('pg_dump', template, ['-Fc', '--no-owner', '--no-privileges',
+        ...excluded.map(({ schema, name }) => '--exclude-table-data=' + schema + '.' + name),
+        '--file', output + '.partial']);
+    });
+    if (process.platform !== 'win32') await chmod(output + '.partial', 0o600);
+    await rename(output + '.partial', output);
+  } finally {
+    await rm(output + '.partial', { force: true });
+    await using(owner.url.href, db => db.query('DROP DATABASE ' + quote(template.database)));
+  }
   console.log(output);
 }
 
@@ -255,8 +271,11 @@ try {
   } else {
     await using(owner.url.href, async db => {
       await db.query('SELECT pg_advisory_lock($1)', [lockKey]);
-      if (['init', 'migrate'].includes(command)) await migrate(db);
-      else if (command === 'restore') await restore(db, owner, args[0]);
+      if (['init', 'migrate'].includes(command)) await migrate(db, args.includes('--seed'));
+      else if (command === 'restore') {
+        await restore(db, owner, args[0]);
+        await migrate(db);
+      }
       else if (command !== 'verify') throw new Error('Usa init, prepare, migrate, verify, backup o restore.');
       if (command !== 'verify') await configurePrivileges(db, runtime);
       await verify(db, runtime, args.includes('--demo') || command === 'restore');

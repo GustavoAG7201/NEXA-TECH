@@ -3,7 +3,7 @@ import { activeUid } from './session.js';
 
 const messages = {
   SESSION_CHANGED: 'Tu sesión expiró o cambió. Vuelve a iniciar sesión.',
-  IDEMPOTENCY_CONFLICT: 'La clave de esta operación ya se usó con otros datos. Vuelve a cargar la página.',
+  IDEMPOTENCY_CONFLICT: 'La solicitud cambió. Actualiza la página y vuelve a intentarlo.',
   STOCK_UNAVAILABLE: 'Inventario insuficiente. Revisa las cantidades en tu carrito.',
   VARIANT_UNAVAILABLE: 'Un producto está agotado o dejó de estar disponible. Revisa tu carrito.',
   PRODUCT_UNAVAILABLE: 'El producto dejó de estar disponible.',
@@ -13,24 +13,24 @@ const messages = {
   CART_UNAVAILABLE: 'El carrito cambió o ya se usó. Revisa tu carrito y tu historial.',
   ADDRESS_UNAVAILABLE: 'Selecciona una dirección de entrega disponible.',
   INVALID_DATA: 'Revisa los datos e inténtalo de nuevo.',
-  DELIVERY_UNAVAILABLE: 'La entrega simulada no tiene cobertura para esta dirección.',
+  DELIVERY_UNAVAILABLE: 'La paquetería no tiene cobertura para esta dirección.',
   COUPON_UNAVAILABLE: 'Ese cupón no está disponible.',
   COUPON_MINIMUM: 'El subtotal no alcanza el mínimo requerido por el cupón.',
   COUPON_LIMIT: 'El cupón alcanzó su límite de uso.',
   QUOTE_EXPIRED: 'La cotización venció. Solicita una nueva.',
   QUOTE_CHANGED: 'Cambió el precio, la entrega o el contenido del carrito. Solicita una nueva cotización.',
   QUOTE_UNAVAILABLE: 'La cotización ya no está disponible. Solicita una nueva.',
-  TERMS_REQUIRED: 'Revisa y acepta la versión de términos de la cotización.',
+  TERMS_REQUIRED: 'Revisa y acepta los términos y condiciones de la cotización.',
   POLICY_UNAVAILABLE: 'Los términos de compra vigentes no están disponibles. Intenta cotizar de nuevo.',
-  PAYMENT_DECLINED: 'El pago simulado fue rechazado. Tu carrito sigue disponible para reintentar.',
+  PAYMENT_DECLINED: 'El pedido no pudo confirmarse. Tu carrito sigue disponible.',
   PROFILE_DISABLED: 'Tu perfil comercial no está activo.',
   FORBIDDEN: 'Tu cuenta no tiene permiso para esta operación.',
   ROLE_CHANGE_NOT_ALLOWED: 'El cambio de rol solicitado no está permitido.',
   CONTACT_EMAIL_REQUIRED: 'La cuenta necesita un correo válido para confirmar.',
   INVALID_TRANSITION: 'El estado actual no admite esta acción. Actualiza la consulta.',
   ORDER_UNAVAILABLE: 'El pedido no está disponible para esta cuenta.',
-  TRACKING_REQUIRED: 'Completa el transportista y la guía ficticia.',
-  CANCELLATION_UNAVAILABLE: 'Solo se pueden cancelar pedidos pagados antes del despacho.',
+  TRACKING_REQUIRED: 'Completa el transportista y la guía de referencia.',
+  CANCELLATION_UNAVAILABLE: 'Puedes solicitar una cancelación antes de que se registre el despacho.',
   RETURN_UNAVAILABLE: 'El expediente no está disponible o el pedido no admite esta solicitud.',
   RETURN_QUANTITY_UNAVAILABLE: 'La cantidad supera las unidades disponibles para solicitar.',
   INVALID_RETURN_ITEMS: 'Revisa las partidas y las cantidades del expediente.',
@@ -43,12 +43,13 @@ const messages = {
   TICKET_UNAVAILABLE: 'El ticket no está disponible para esta cuenta.',
   REASON_REQUIRED: 'Escribe el motivo de la decisión.',
   INVENTORY_ADMIN_REQUIRED: 'El ingreso a existencias requiere un administrador.',
-  SCHEMA_INCOMPLETE: 'La operación está suspendida mientras se verifican las protecciones de la base.',
+  SCHEMA_INCOMPLETE: 'El servicio está temporalmente fuera de línea. Inténtalo más tarde.',
+  SERVER_ERROR: 'El servicio no pudo completar la solicitud. Inténtalo más tarde.',
 };
 
 export class CommerceError extends Error {
   constructor(code) {
-    super(messages[code] ?? 'PostgreSQL rechazó la operación. Revisa los datos e inténtalo de nuevo.');
+    super(messages[code] ?? 'No se pudo completar la solicitud. Revisa los datos e inténtalo de nuevo.');
     this.code = code;
   }
 }
@@ -97,13 +98,14 @@ export function canonicalUuid(value) {
 }
 
 export const orderStatus = status => ({
-  PAID: 'Pagado', PREPARING: 'En preparación', SHIPPED: 'Enviado', DELIVERED: 'Entregado',
-  CANCELLED: 'Cancelado', REFUNDED: 'Reembolsado',
+  PAID: 'Confirmado', PREPARING: 'En preparación', SHIPPED: 'Despacho registrado', DELIVERED: 'Entrega registrada',
+  CANCELLED: 'Cancelado', REFUNDED: 'Reembolso registrado',
 })[status] ?? status;
 export const paymentStatus = status => ({
   APPROVED: 'Aprobado', DECLINED: 'Rechazado', PENDING: 'Pendiente', REFUNDED: 'Reembolsado',
 })[status] ?? 'No disponible';
-export const receiptNotice = 'Comprobante académico de compra simulada — Sin validez fiscal';
+export const receiptNotice = 'Comprobante de pedido · Sin validez fiscal';
+export const noChargeNotice = 'No se realizan cargos reales.';
 export const orderDate = timestamp => new Intl.DateTimeFormat('es-MX', {
   dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Matamoros',
 }).format(new Date(timestamp));

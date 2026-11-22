@@ -18,6 +18,11 @@
 			header_up X-Nexa-Client-IP {client_ip}
 		}
 	}
+	@catalog_media path /catalogo/*
+	handle @catalog_media {
+		root * "{$WEB_ROOT:/srv/nexatech}"
+		file_server
+	}
 	handle {
 		root * "{$WEB_ROOT:/srv/nexatech}"
 		try_files {path} /index.html

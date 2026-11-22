@@ -73,12 +73,11 @@ function AddressForm({ uid, address, first, saved, cancel }) {
   </form>;
 }
 
-export function Delivery({ uid, addresses, address, select, editor, edit, saved, disabled }) {
+export function Delivery({ uid, addresses, address, select, editor, edit, saved, disabled, title = 'Dirección de entrega' }) {
   const editing = editor !== null || !addresses.length;
   const existing = addresses.find(item => item.id === editor);
   return <section className="surface form-stack" aria-labelledby="delivery-title">
-    <div><h2 id="delivery-title">Dirección de entrega</h2>
-      <p className="muted">Usa datos ficticios. La entrega simulada cubre Tamaulipas y Ciudad de México.</p></div>
+    <h2 id="delivery-title">{title}</h2>
     {addresses.length > 0 && <>
       <label>Dirección guardada<select value={address?.id ?? ''} disabled={disabled || editing} onChange={event => select(event.target.value)}>
         {addresses.map(item => <option key={item.id} value={item.id}>{item.label} · {item.line1}</option>)}

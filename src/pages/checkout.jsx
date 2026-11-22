@@ -11,6 +11,7 @@ import { useResource } from '../hooks/useResource.js';
 import { loadPolicies, money } from '../lib/catalog.js';
 import { canonicalUuid, checkSession, CommerceError, commerceMessage, exactMoney, loadAddresses, loadQuote, orderDate, resultId, runCommand } from '../lib/commerce.js';
 import { storeId } from '../lib/api.js';
+import { policyPath } from '../lib/policies.js';
 import { CartContents, CartFeedback, CartSubtotal } from './cart.jsx';
 
 const expires = quote => Date.parse(quote.expiresAt) <= Date.now();
@@ -22,7 +23,6 @@ function readAttempt(uid) {
 
 function QuotedOrder({ quote, terms, disabled, confirm }) {
   const [accepted, setAccepted] = useState(false);
-  const [scenario, setScenario] = useState('APPROVE');
   const [expired, setExpired] = useState(() => expires(quote));
   useEffect(() => {
     const timer = window.setTimeout(() => setExpired(true), Math.max(0, Date.parse(quote.expiresAt) - Date.now()));
@@ -32,7 +32,7 @@ function QuotedOrder({ quote, terms, disabled, confirm }) {
   const { recipient, phone, line1, line2, district, city, state_code: stateCode, postal_code: postalCode } = summary.address;
   return <section className="surface form-stack" aria-labelledby="quote-title">
     <div><h2 id="quote-title">Cotización del pedido</h2>
-      <p className="muted">{summary.deliveryLabel} · {summary.etaMinDays}–{summary.etaMaxDays} días estimados</p>
+      <p className="muted">Paquetería · {summary.etaMinDays}–{summary.etaMaxDays} días de referencia</p>
       <p className="muted">Vigente hasta {orderDate(quote.expiresAt)} (hora de Matamoros).</p>
     </div>
     <AddressText address={{ recipient, phone, line1, line2, district, city, stateCode, postalCode }} />
@@ -45,24 +45,25 @@ function QuotedOrder({ quote, terms, disabled, confirm }) {
     {expired && <p className="feedback error" role="alert">La cotización venció. Solicita una nueva.</p>}
     <form className="form-stack" onSubmit={event => {
       event.preventDefault();
-      if (accepted && !disabled) confirm(quote, terms, scenario);
+      if (accepted && !disabled) confirm(quote, terms);
     }}>
       <fieldset disabled={disabled || expired}>
-        <legend>Pago académico</legend>
+        <legend>Modalidad de pedido</legend>
+        <p>Registro de pedido. No se realizan cargos reales.</p>
         <details className="checkout-terms">
-          <summary>{terms.title} · Versión {terms.version}</summary>
+          <summary>{terms.title}</summary>
           <p className="policy-body">{terms.body}</p>
         </details>
         <label className="check-field"><input type="checkbox" required checked={accepted}
-          onChange={event => setAccepted(event.target.checked)} /> Acepto los términos y condiciones, versión {terms.version}.</label>
-        <details className="checkout-terms">
-          <summary>Escenario de prueba</summary>
-          <label>Resultado del simulador<select value={scenario} onChange={event => setScenario(event.target.value)}>
-            <option value="APPROVE">Pago aprobado</option>
-            <option value="DECLINE">Pago rechazado</option>
-          </select></label>
-        </details>
-        <button className="button primary" disabled={!accepted}>Pagar mediante simulación académica</button>
+          onChange={event => setAccepted(event.target.checked)} /> Acepto los términos y condiciones.</label>
+        <nav className="action-row" aria-label="Políticas del pedido">
+          <Link className="text-link" to={policyPath('PRIVACY')} target="_blank" rel="noopener">Aviso de privacidad</Link>
+          <Link className="text-link" to={policyPath('SHIPPING')} target="_blank" rel="noopener">Política de envíos</Link>
+          <Link className="text-link" to={policyPath('CANCELLATION')} target="_blank" rel="noopener">Cancelaciones</Link>
+          <Link className="text-link" to={policyPath('RETURN')} target="_blank" rel="noopener">Devoluciones</Link>
+          <Link className="text-link" to={policyPath('WARRANTY')} target="_blank" rel="noopener">Garantías</Link>
+        </nav>
+        <button className="button primary" disabled={!accepted}>Confirmar pedido</button>
       </fieldset>
     </form>
   </section>;
@@ -118,7 +119,7 @@ function CheckoutSession({ uid }) {
     });
   }
 
-  function confirm(quote, terms, scenario) {
+  function confirm(quote, terms) {
     return act(async () => {
       checkSession(uid);
       const purchase = async () => {
@@ -129,7 +130,7 @@ function CheckoutSession({ uid }) {
             setQuoted(null);
             throw new CommerceError('QUOTE_EXPIRED');
           }
-          current = { key: quote.id, quoteId: quote.id, termsId: terms.id, accepted: true, scenario };
+          current = { key: quote.id, quoteId: quote.id, termsId: terms.id, accepted: true, scenario: 'APPROVE' };
           localStorage.setItem(attemptKey(uid), JSON.stringify(current));
         }
         setAttempt(current);
@@ -154,9 +155,9 @@ function CheckoutSession({ uid }) {
   if (attempt) return <section className="surface form-stack" aria-labelledby="purchase-progress">
     <h2 id="purchase-progress">Confirmación del pedido</h2>
     {busy ? <p role="status">Verificando el resultado de la compra…</p>
-      : <p>Hay un intento pendiente de verificar. Reintenta para recuperar el resultado del mismo pago simulado.</p>}
+      : <p>La confirmación está pendiente. Reintenta para consultar el resultado del mismo pedido.</p>}
     {error && <p role="alert" className="feedback error">{error}</p>}
-    <button type="button" className="button primary" disabled={busy} onClick={() => confirm()}>Reintentar compra</button>
+    <button type="button" className="button primary" disabled={busy} onClick={() => confirm()}>Reintentar confirmación</button>
     <Link className="text-link" to="/pedidos">Ver historial de pedidos</Link>
   </section>;
 
@@ -173,7 +174,7 @@ function CheckoutSession({ uid }) {
       return <div className="checkout-grid">
         <div className="checkout-steps">
           <PurchaseResource resource={addresses} label="Consultando direcciones…">{items => {
-            const address = items.find(item => item.id === selected) ?? items[0];
+            const address = items.find(item => item.id === selected) ?? items.find(item => item.isDefault) ?? items[0];
             const validQuote = quoted && quoted.quote.cartId === cart?.id && quoted.quote.addressId === address?.id &&
               String(quoted.quote.cartRevision) === String(cart?.revision) ? quoted : null;
             return <>
@@ -184,7 +185,7 @@ function CheckoutSession({ uid }) {
               {address && editor === null && <>
                 <form className="surface form-stack" onSubmit={event => requestQuote(event, address)}>
                   <h2>Envío y cupón</h2>
-                  <p>Paquetería simulada dentro de México.</p>
+                  <p>Cotización disponible para Tamaulipas y Ciudad de México.</p>
                   <fieldset disabled={busy || basket.locked}>
                     <label>Cupón (opcional)<input name="coupon" maxLength={48} value={coupon} onChange={event => {
                       setCoupon(event.target.value);
@@ -222,7 +223,7 @@ export function Checkout() {
   const { user, pending, error } = useAuthSession();
   return <div className="wrap page checkout-steps">
     <div><Link className="back-link" to="/carrito"><ChevronLeft aria-hidden="true" /> Volver al carrito</Link>
-      <PageHeading title="Resumen de compra">{user ? 'Entrega, cotización y pago simulado.' : 'Vista previa de la compra académica.'}</PageHeading></div>
+      <PageHeading title="Resumen de compra" /></div>
     {pending ? <p role="status">Comprobando sesión…</p> : error ? <p role="alert">{commerceMessage(error)}</p> :
       user ? <CheckoutSession key={user.uid} uid={user.uid} /> :
         <CartContents>{lines => lines.length ? <div className="checkout-grid">

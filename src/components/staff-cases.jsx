@@ -139,18 +139,18 @@ function ResolveCase({ uid, id, request, onSaved }) {
   return <CommandForm uid={uid}
     command={action === 'replacement' ? staff.resolveReplacement : staff.approveRefund}
     title={cancellation ? 'Ejecutar cancelación' : 'Resolver expediente'} className="resolve-case" onSaved={onSaved}
-    submitLabel={cancellation ? 'Cancelar pedido y simular reembolso' : action === 'replacement' ? 'Registrar reposición' : 'Ejecutar reembolso simulado'}
+    submitLabel={cancellation ? 'Confirmar cancelación' : action === 'replacement' ? 'Registrar reposición' : 'Registrar reembolso'}
     values={form => {
       const detail = textValue(form, 'detail');
       return action === 'replacement' ? { id, detail } : { id, detail, shipping: cancellation || form.has('shipping') };
     }}>
     {replacement && <label>Acción<select name="action" value={action} onChange={event => setAction(event.target.value)}>
-      <option value="refund">Reembolso simulado</option><option value="replacement">Reposición</option>
+      <option value="refund">Registro de reembolso</option><option value="replacement">Reposición</option>
     </select></label>}
     {!cancellation && action === 'refund' &&
       <label className="check-field"><input type="checkbox" name="shipping" /> Solicitar devolución del envío elegible</label>}
-    <p className="muted">{action === 'replacement' ? 'PostgreSQL comprueba las existencias para la reposición.'
-      : 'PostgreSQL calcula el importe elegible. El reembolso es académico.'}</p>
+    <p className="muted">{action === 'replacement' ? 'La reposición está sujeta a existencias.'
+      : 'El importe elegible se calcula al registrar la resolución. No se transfiere dinero.'}</p>
     <label>Motivo de resolución<textarea name="detail" rows={3} maxLength={1000} required /></label>
   </CommandForm>;
 }

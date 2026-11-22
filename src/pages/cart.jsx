@@ -94,7 +94,7 @@ function CartPanel({ lines, close }) {
     <aside className="surface summary">
       <h2>Resumen</h2>
       <CartSubtotal lines={lines} />
-      <p className="muted">Precios simulados. Envío e impuestos se calcularán al cotizar.</p>
+      <p className="muted">La cotización incluye descuentos, envío e impuestos aplicables.</p>
       {valid && !mergeError && !locked && <Link className="button primary" to="/checkout" onClick={close}>Ver resumen de compra</Link>}
       {!valid && <p role="status" className="feedback error">Ajusta las cantidades o quita los productos sin existencia.</p>}
       {close && <Link className="text-link" to="/carrito" onClick={close}>Ver carrito completo</Link>}

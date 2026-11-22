@@ -17,6 +17,13 @@ const auth = createAuth(pool, { origin, secure, trustProxy: process.env.TRUST_PR
 const port = Number(process.env.API_PORT ?? 8787);
 const host = process.env.API_HOST ?? '127.0.0.1';
 const maxBody = 3 * 1024 * 1024;
+const legalContact = Object.fromEntries(Object.entries({
+  responsible: 'LEGAL_RESPONSIBLE',
+  address: 'LEGAL_ADDRESS',
+  privacyEmail: 'LEGAL_PRIVACY_EMAIL',
+  supportEmail: 'LEGAL_SUPPORT_EMAIL',
+  supportPhone: 'LEGAL_SUPPORT_PHONE',
+}).map(([field, variable]) => [field, process.env[variable]?.trim() || null]));
 
 function send(res, status, data) {
   res.writeHead(status, {
@@ -72,6 +79,7 @@ const server = createServer({ requestTimeout: 30000, headersTimeout: 10000 }, as
       const identity = await auth.session(req);
       return send(res, 200, { user: identity ? auth.publicUser(identity) : null });
     }
+    if (req.method === 'GET' && req.url === '/api/legal-contact') return send(res, 200, legalContact);
     const route = /^\/api\/(auth|operations)\/([a-zA-Z-]+)$/.exec(req.url);
     if (!route || req.method !== 'POST') throw new HttpError(404, 'NOT_FOUND');
     if (req.headers.origin !== origin.origin) throw new HttpError(403, 'CSRF');

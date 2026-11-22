@@ -76,7 +76,7 @@ export function Admin() {
       const admin = roles.includes('ADMIN');
       if (!user.emailVerified || (!admin && (!roles.includes('SUPPORT') || adminSections.includes(section)))) {
         return <State title="Acceso restringido" action={<Link className="button primary" to="/perfil">Ir a mi perfil</Link>}>
-          El panel requiere un correo verificado y un rol de personal asignado en PostgreSQL.
+          El panel requiere un correo verificado y un rol de personal autorizado.
         </State>;
       }
       const active = section === 'variantes' ? 'productos' : section ?? '';

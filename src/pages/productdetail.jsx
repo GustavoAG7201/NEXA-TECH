@@ -30,7 +30,6 @@ function Purchase({ product }) {
   if (variant.lengthMm) specs.push(['Dimensiones (largo × ancho × alto)', [variant.lengthMm, variant.widthMm, variant.heightMm].join(' × ') + ' mm']);
   return <>
     <div className="detail-price"><ProductPrice variant={variant} /></div>
-    {product.specs?.origenPrecio === 'simulado' && <p className="muted">Precio simulado en MXN · Ficha académica</p>}
     <p className="detail-description">{product.description}</p>
     {product.variants.length > 1
       ? <label className="option-field">Variante<select value={variant.id} onChange={event => {
@@ -49,7 +48,7 @@ function Purchase({ product }) {
       </button>
       <FavoriteButton product={product} />
     </div>
-    <p className="shipping-note"><Link className="text-link" to="/politicas/envios">Información de envío simulado</Link></p>
+    <p className="shipping-note"><Link className="text-link" to="/politicas/envios">Política de envíos</Link></p>
     {specs.length > 0 && <section className="specs">
       <h2>Especificaciones</h2>
       <dl>{specs.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{String(value)}</dd></div>)}</dl>

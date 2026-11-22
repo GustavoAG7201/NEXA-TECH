@@ -18,7 +18,7 @@ export const operationalLabels = {
   SUBMITTED: 'Recibido', IN_REVIEW: 'En revisión', NEEDS_INFO: 'Requiere información',
   APPROVED: 'Autorizado', REJECTED: 'Rechazado', AWAITING_ITEM: 'En espera del artículo',
   RECEIVED: 'Artículo recibido', INSPECTED: 'Inspeccionado', RESOLVED: 'Resuelto',
-  REFUND: 'Reembolso simulado', REPLACEMENT: 'Reposición', REPAIR: 'Reparación', NO_REFUND: 'Cierre sin reembolso',
+  REFUND: 'Registro de reembolso', REPLACEMENT: 'Reposición', REPAIR: 'Reparación', NO_REFUND: 'Cierre sin reembolso',
   OPEN: 'Abierto', IN_PROGRESS: 'En curso', WAITING_CUSTOMER: 'En espera del cliente',
   DEFECT: 'Falla o defecto', DAMAGED: 'Daño', WRONG_ITEM: 'Artículo incorrecto', CHANGED_MIND: 'Cambio de decisión',
   OTHER: 'Otro motivo', SELLABLE: 'Vendible', NON_SELLABLE: 'No vendible', NOT_RECEIVED: 'No recibido',

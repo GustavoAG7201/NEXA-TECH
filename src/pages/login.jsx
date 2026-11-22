@@ -62,11 +62,11 @@ export function AuthForm({ register = false }) {
     <div className="auth-layout">
       <div className="auth-visual">
         <p className="eyebrow">Cuenta NexaTech</p>
-        <h2>{register ? 'Tu cuenta para la tienda académica.' : 'Vuelve a tu cuenta.'}</h2>
+        <h2>Consulta tus pedidos y guarda tus favoritos.</h2>
         <img src="/catalogo/telefono-perfil.jpg" alt="" />
       </div>
       <section className="surface auth-panel">
-        <PageHeading title={register ? 'Crea tu cuenta' : 'Inicia sesión'}>Usa datos de prueba para la tienda académica.</PageHeading>
+        <PageHeading title={register ? 'Crea tu cuenta' : 'Inicia sesión'} />
         {pending && <p role="status">Comprobando sesión…</p>}
         {(error || sessionError) && <p role="alert" className="feedback error">{error || identityError(sessionError)}</p>}
         {notice && <p role="status" className="feedback">{notice}</p>}
@@ -89,7 +89,7 @@ export function AuthForm({ register = false }) {
         {!user && <p className="auth-switch">{register ? '¿Ya tienes cuenta? ' : '¿Aún no tienes cuenta? '}
           <Link className="text-link" state={state} to={alternate + (checkout ? '?continuar=checkout' : '')}>{register ? 'Inicia sesión' : 'Crea una cuenta'}</Link>
         </p>}
-        {register && <Link className="text-link" to="/politicas/privacidad">Privacidad de la demostración</Link>}
+        {register && <Link className="text-link" to="/politicas/privacidad">Aviso de privacidad</Link>}
       </section>
     </div>
   </div>;

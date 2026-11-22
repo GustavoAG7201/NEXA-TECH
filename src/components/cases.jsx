@@ -44,7 +44,8 @@ export function ReturnDetails({ value }) {
 export function RefundDetails({ refunds }) {
   if (!refunds.length) return null;
   return <section className="form-stack">
-    <h3>Reembolsos simulados aprobados</h3>
+    <h3>Reembolsos registrados</h3>
+    <p className="muted">Estos importes se muestran como referencia.</p>
     <RecordList items={refunds} render={refund => <li key={refund.id}>
       <div><strong>{exactMoney(refund.amountCents)}</strong><p>Parte del envío {exactMoney(refund.shippingRefundCents)}</p></div>
       <time dateTime={refund.decidedAt}>{orderDate(refund.decidedAt)}</time>

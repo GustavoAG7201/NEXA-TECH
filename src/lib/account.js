@@ -15,10 +15,10 @@ const messages = {
   INVALID_CREDENTIALS: 'Revisa tu correo y tu contraseña.',
   INVALID_EMAIL: 'Escribe un correo válido.',
   INVALID_NAME: 'Escribe tu nombre.',
-  WEAK_PASSWORD: 'Elige una contraseña de al menos doce caracteres y hasta 256 bytes.',
+  WEAK_PASSWORD: 'Elige una contraseña de al menos doce caracteres. Si ya cumple el mínimo, intenta con una más corta.',
   RATE_LIMIT: 'Espera un momento antes de intentarlo de nuevo.',
-  EMAIL_UNAVAILABLE: 'El servicio de correo requiere configuración. Contacta con la administración.',
-  EMAIL_DELIVERY_ERROR: 'El servidor de correo no aceptó el envío. Inténtalo más tarde.',
+  EMAIL_UNAVAILABLE: 'El correo no está disponible en este momento. Inténtalo más tarde.',
+  EMAIL_DELIVERY_ERROR: 'No pudimos enviar el correo. Inténtalo más tarde.',
   EMAIL_VERIFIED: 'El correo de esta cuenta ya está verificado.',
   INVALID_TOKEN: 'El enlace caducó o ya se utilizó. Solicita uno nuevo.',
 };

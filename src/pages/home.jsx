@@ -28,12 +28,12 @@ export function Home() {
         </div>
         <div className="hero-showcase">
           <div className="hero-image">
-            <img src="/catalogo/portatil.jpg" alt="Portátil azul noche con pantalla abierta y teclado visible" fetchPriority="high" />
+            <ProductImage image={heroProduct?.images[0]} eager />
           </div>
           {heroProduct && <div className="hero-caption">
             <div><p className="eyebrow">{heroProduct.specs?.marca ?? 'Computadoras'}</p>
               <Link to={'/producto/' + heroProduct.slug}>{heroProduct.name}</Link></div>
-            <div><ProductPrice variant={preferredVariant(heroProduct)} /><small>Precio simulado en MXN</small></div>
+            <ProductPrice variant={preferredVariant(heroProduct)} />
           </div>}
         </div>
       </div>
@@ -53,7 +53,7 @@ export function Home() {
       }}</Resource>
     </section>
     <section className="wrap section">
-      <div className="section-top"><div><h2>Selección Nexa</h2><p className="muted">Precios de demostración en MXN.</p></div>
+      <div className="section-top"><h2>Selección Nexa</h2>
         <Link className="text-link" to="/productos">Ver catálogo</Link></div>
       <Resource value={highlights} label="Cargando selección…">{items => items.some(Boolean)
         ? <div className="product-grid">{items.filter(Boolean).map(item => <ProductCard key={item.id} product={item} />)}</div>
@@ -69,7 +69,7 @@ export function Home() {
     </section>}
     <section id="beneficios" tabIndex="-1" className="wrap section help-strip">
       <ShieldCheck aria-hidden="true" />
-      <div><h2>Compra de demostración</h2><p>Conoce cómo se simulan el envío, los pagos y la atención al cliente.</p></div>
+      <div><h2>¿Necesitas ayuda con tu pedido?</h2><p>Consulta las políticas de envío, devoluciones y garantías.</p></div>
       <Link className="button secondary" to="/ayuda">Centro de ayuda</Link>
     </section>
   </>;

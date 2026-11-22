@@ -88,7 +88,7 @@ export function Catalog() {
     return '?' + next;
   };
   return <div className="wrap page">
-    <PageHeading title={active?.name ?? 'Catálogo'}>Precios de demostración en pesos mexicanos.</PageHeading>
+    <PageHeading title={active?.name ?? 'Catálogo'}>Precios en pesos mexicanos.</PageHeading>
     <Resource value={categories} label="Cargando categorías…">{items => <>
       <nav className="chips" aria-label="Filtrar por categoría">
         <Link to={categoryUrl('')} aria-current={!normalized ? 'true' : undefined}>Todos</Link>

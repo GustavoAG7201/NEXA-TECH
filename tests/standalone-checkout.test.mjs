@@ -122,22 +122,39 @@ async function download(browser, dir, folio) {
   return [...document.matchAll(/<([0-9a-f]+)> Tj/g)].map(match => decoder.decode(Buffer.from(match[1], 'hex')));
 }
 
-test('Registro y edición del perfil desde Chrome', { skip: !existsSync(browsers[0][1]), timeout: 60000 }, async () => {
+test('Registro, perfil, direcciones y políticas desde Chrome', { skip: !existsSync(browsers[0][1]), timeout: 90000 }, async () => {
   const browser = await openBrowser(browsers[0][1], localWork, 'registro');
   try {
     const email = 'registro-navegador@nexatech.test';
     await browser.go(origin + '/registro');
     await fill(browser, 'main form', { name: 'Registro navegador', email, password });
     await browser.waitText('.session-email', email);
+    await fill(browser, 'main form', { name: 'Perfil actualizado', phone: 'abc' });
+    await browser.waitText('main form [role="alert"]', 'Escribe un teléfono válido');
     await fill(browser, 'main form', { name: 'Perfil actualizado', phone: '8681234567' });
     await browser.waitText('[role="status"].feedback', 'Perfil guardado');
     const profile = await one(`
       SELECT a.display_name, a.phone, r.role_code FROM public.app_user a
       JOIN nexa_auth.identity i ON i.uid = a.uid JOIN public.user_role r ON r.user_uid = a.uid WHERE i.email = $1`, [email]);
     assert.deepEqual(profile, { display_name: 'Perfil actualizado', phone: '8681234567', role_code: 'CUSTOMER' });
+    await browser.waitText('#delivery-title', 'Mis direcciones');
+    await fill(browser, '.address-form', {
+      recipient: 'Cliente de prueba', phone: '8681234567', line1: 'Calle Prueba 10', district: 'Centro',
+      city: 'Matamoros', stateCode: 'TAM', postalCode: '87300', label: 'Casa',
+    });
+    await browser.waitText('.address-text', 'Calle Prueba 10');
+    await browser.waitText('[aria-labelledby="delivery-title"] + [role="status"]', 'Dirección guardada.');
     await signOut(browser);
     await signIn(browser, { email });
     await browser.waitText('.session-email', email);
+    await browser.waitText('.address-text', 'Calle Prueba 10');
+    await browser.go(origin + '/politicas/privacidad');
+    await browser.waitText('.policy-list h2', 'Aviso de privacidad');
+    await browser.waitText('.policy-body', '(ARCO)');
+    assert.equal(await browser.evaluate(() => document.querySelectorAll('footer nav a[href^="/politicas/"]').length), 7);
+    await accessible(browser, ['.policy-list h2', '.policy-contact dd']);
+    await browser.click('footer a[href="/politicas/soporte"]');
+    await browser.waitText('.policy-list h2', 'Atención a clientes y soporte');
     assert.deepEqual(browser.errors, []);
   } finally {
     await browser.close();
@@ -184,11 +201,12 @@ for (const [name, executable] of browsers) {
 
       await browser.go(origin + '/producto/' + product.slug);
       await browser.waitText('main h1', product.name);
+      await until(() => browser.evaluate(() => Boolean(document.querySelector('.buy-row .button.primary:enabled'))), 'purchase button enabled');
       await browser.click('.buy-row .button.primary');
       await browser.waitText('dialog .cart-line', product.name);
       await browser.press('Escape');
       await browser.go(origin + '/checkout');
-      await browser.waitText('main', 'Vista previa');
+      await browser.waitText('main', 'Cuenta y entrega');
       await browser.go(origin + '/login?continuar=checkout');
       await browser.waitText('main h1', 'Inicia sesión');
       await browser.evaluate(() => { window.e2DropOperation = 'MergeCart'; });
@@ -272,15 +290,13 @@ for (const [name, executable] of browsers) {
       assert.equal((await cartQuantity(buyer.uid)).quantity, 2);
 
       await quote(browser, 'DEMO10');
-      await accept(browser);
-      await browser.evaluate(() => {
-        const select = document.querySelector('details select');
-        select.closest('details').open = true;
-        select.value = 'DECLINE';
-        select.dispatchEvent(new Event('change', { bubbles: true }));
+      const declinedQuote = await one(`SELECT q.id, q.summary->'documents'->>'TERMS' AS terms_id
+        FROM public.checkout_quote q JOIN public.cart c ON c.id = q.cart_id
+        WHERE c.user_uid = $1 ORDER BY q.created_at DESC LIMIT 1`, [buyer.uid]);
+      const decline = await operation('ConfirmCheckout', buyer, {
+        key: randomUUID(), quoteId: declinedQuote.id, termsId: declinedQuote.terms_id, accepted: true, scenario: 'DECLINE',
       });
-      await browser.click(confirmButton);
-      await browser.waitText('main [role="alert"]', 'pago simulado fue rechazado');
+      assert.equal(decline.resultCode, 'PAYMENT_DECLINED');
       assert.equal((await cartQuantity(buyer.uid)).quantity, 2);
       assert.equal((await one('SELECT stock_on_hand FROM public.product_variant WHERE id=$1', [product.id])).stock_on_hand, product.stock_on_hand);
 
@@ -327,11 +343,11 @@ for (const [name, executable] of browsers) {
       assert.deepEqual(payment, { status: 'APPROVED', provider: 'SIMULATED', amount_cents: order.total_cents });
       const terms = await one(`SELECT d.version, t.evidence_kind FROM public.terms_acceptance t
         JOIN public.legal_document d ON d.id=t.legal_document_id WHERE t.order_id=$1 AND d.kind='TERMS'`, [order.id]);
-      assert.deepEqual(terms, { version: 1, evidence_kind: 'ACCEPTED' });
+      assert.deepEqual(terms, { version: 2, evidence_kind: 'ACCEPTED' });
       await browser.go(origin + '/checkout');
-      await browser.waitText('main', 'Reintentar compra');
+      await browser.waitText('main', 'Reintentar confirmación');
       await browser.click('main section > button.primary');
-      await browser.waitText('main h1', 'Compra simulada confirmada');
+      await browser.waitText('main h1', 'Confirmación de pedido');
       await browser.waitText('main .lede', order.folio);
       assert.equal((await one('SELECT count(*)::int AS count FROM public.customer_order WHERE user_uid=$1', [buyer.uid])).count, 1);
       assert.equal((await one(`SELECT count(*)::int AS count FROM public.commerce_command
@@ -339,8 +355,8 @@ for (const [name, executable] of browsers) {
       await accessible(browser, ['.summary .muted', receiptButton]);
       const receipt = await download(browser, join(localWork, 'pdf-' + suffix), order.folio);
       for (const value of ['NexaTech', 'Folio ' + order.folio, buyer.email, 'María de Prueba', 'Calle Académica 42',
-        'Interior 5', 'Pedido Pagado | Pago simulado Aprobado', product.name, '2', pesos(product.unit_price_cents),
-        'Comprobante académico de compra simulada — Sin validez fiscal']) {
+        'Interior 5', 'Estado del pedido Confirmado', product.name, '2', pesos(product.unit_price_cents),
+        'Comprobante de pedido · Sin validez fiscal', 'No se realizan cargos reales.']) {
         assert.ok(receipt.includes(value), 'receipt includes ' + value);
       }
       assert.ok(receipt.some(line => line.includes(sku)));
