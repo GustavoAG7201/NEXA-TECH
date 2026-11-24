@@ -2,6 +2,8 @@
 
 Esta guía instala NexaTech como una aplicación compuesta en el servidor Romex. La tienda usa un solo hostname público, pero separa sus responsabilidades en tres contenedores:
 
+Si todavía no tienes Tailscale, no sabes entrar por SSH o necesitas una explicación paso a paso, comienza con la [guía completa de acceso y despliegue para Gustavo](GUIA_GUSTAVO_ACCESO_Y_DESPLIEGUE_ROMEX.md).
+
 ```text
 Internet → Cloudflare Tunnel → Traefik → Caddy (React y /api) → API Node → PostgreSQL 18
 ```
@@ -49,7 +51,7 @@ runtime_password=$(openssl rand -hex 32)
 Edita `deploy/.env` con valores equivalentes a estos, sin comillas ni espacios finales:
 
 ```dotenv
-APP_DOMAIN=tarea-gustambo.romex.it.com
+APP_DOMAIN=nextech.romex.it.com
 NEXA_OWNER_PASSWORD=<owner_password>
 DATABASE_URL=postgresql://nexa_runtime:<runtime_password>@db:5432/nexatech
 SMTP_PORT=587
@@ -93,10 +95,10 @@ Comprueba servicios, integridad de base y endpoints desde el servidor o una red 
 ```sh
 docker compose --env-file deploy/.env -f deploy/compose.romex.yaml ps
 sh deploy/nexatech-romex.sh verify
-curl -fsS https://tarea-gustambo.romex.it.com/api/health
-curl -fsS https://tarea-gustambo.romex.it.com/api/legal-contact
-curl -fsS https://tarea-gustambo.romex.it.com/
-curl -fsSI https://tarea-gustambo.romex.it.com/catalogo/modelos/novabook-air-14.webp
+curl -fsS https://nextech.romex.it.com/api/health
+curl -fsS https://nextech.romex.it.com/api/legal-contact
+curl -fsS https://nextech.romex.it.com/
+curl -fsSI https://nextech.romex.it.com/catalogo/modelos/novabook-air-14.webp
 ```
 
 El health check debe devolver `{"status":"ok"}`. La interfaz y la API usan el mismo dominio: Caddy entrega React y reenvía `/api/` al contenedor Node, mientras Traefik conserva TLS y Cloudflare expone el hostname.
